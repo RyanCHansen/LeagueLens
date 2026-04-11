@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="sleeperapp.client/sleeperapp.client.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="SleeperApp.Server/SleeperApp.Server.csproj" />
+</Solution>
