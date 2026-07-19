@@ -46,4 +46,4 @@ There is no repo-wide lint/format command configured yet; Prettier config exists
 ## Working conventions
 
 - Code is the source of truth. Keep markdown docs concise and update them only when something durable actually changes — don't let docs drift into a second copy of the code.
-- Don't implement application features without an agreed architecture (see `docs/ARCHITECTURE.md` and `docs/DECISIONS.md`) — this project is in an explicit planning phase until those are filled in.
+- Architecture planning is complete (see `docs/ARCHITECTURE.md`, `docs/DECISIONS.md` ADR-002). No application code exists yet. Before building anything, check those docs — don't assume the current scaffold's client/server wiring (SPA proxy, single-deployable static file serving) is the target design; it's being replaced.

@@ -2,10 +2,12 @@
 
 *Current state only. For durable guidance see `CLAUDE.md`; for decision history see `docs/DECISIONS.md`.*
 
-**What it is:** LeagueLens — a fantasy football statistics/analytics web app, and a portfolio piece for demonstrating full-stack engineering skill. Started as a side project (co-developed with Mike) to explore fantasy football data while leveling up frontend skills.
+**What it is:** LeagueLens — a fantasy football statistics/analytics web app, and a portfolio piece for demonstrating full-stack engineering skill. Started as a side project (co-developed with Mike, who is a non-technical collaborator) to explore fantasy football data while leveling up cloud/full-stack skills.
 
-**Stage:** Foundation just established. The repo was renamed from its original scaffold name (`SleeperApp`) to `LeagueLens`, the Visual Studio demo code (WeatherForecast) was removed, and baseline docs (`README.md`, `docs/`) were created. **No application features exist yet.** Architecture planning is the next step before any feature work begins.
+**Stage:** Foundation and architecture planning are both complete (see `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`). **No application code exists yet.** Next step is v1 implementation — see `docs/ROADMAP.md`.
 
-**Stack (as scaffolded, not yet reconsidered):** ASP.NET Core 10 Web API (`LeagueLens.Server`) + Angular 21 SPA (`LeagueLens.Client`, NgModule-based), wired via SPA proxy in dev / static file serving in prod.
+**Note:** the renamed scaffold's client/server wiring (SPA proxy, single-deployable static file serving) is being replaced per the planned architecture — the API and SPA will deploy separately. Don't treat the current `Program.cs`/`proxy.conf.js` setup as the target design.
+
+**Frontend:** a Figma design exists for the UI but hasn't been shared into the repo yet. No frontend implementation work starts until it is.
 
 **Next:** see `docs/ROADMAP.md`.
