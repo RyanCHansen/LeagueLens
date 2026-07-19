@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="LeagueLens.Client/LeagueLens.Client.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="LeagueLens.Server/LeagueLens.Server.csproj" />
+</Solution>
