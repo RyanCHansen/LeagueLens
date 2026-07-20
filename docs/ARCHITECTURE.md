@@ -1,6 +1,6 @@
 # Architecture
 
-> **Status: planned, not yet implemented.** This is the target design agreed during the architecture planning phase (see `docs/DECISIONS.md` ADR-002). The repo currently only contains the renamed foundation scaffold — no application code exists yet.
+> **Status: planned, not yet implemented.** This is the target design agreed during the architecture planning phase (see `docs/DECISIONS.md` ADR-002, ADR-003, ADR-004). The repo currently only contains the renamed foundation scaffold — no application code exists yet.
 
 Three separate concerns, kept deliberately distinct: what the app *is* (portable), how it's *deployed today* (Azure, swappable), and how it's *run locally* (Docker, for reproducibility).
 
@@ -21,13 +21,16 @@ Three separate concerns, kept deliberately distinct: what the app *is* (portable
 - **User** — LeagueLens account (ASP.NET Core Identity)
 - **League** — first-class, shared entity keyed by Sleeper league ID. Synced once, not per-user.
 - **LeagueMembership** — links `User` ↔ `League` via the user's Sleeper user ID (many-to-many). This is what makes a shared League model work: if 10 LeagueLens users are in the same real Sleeper league, it's synced once and all 10 see it.
-- **Roster / Matchup / StandingSnapshot** — synced from Sleeper per League, current season only for v1.
+- **Player** — global, first-class entity (canonical ID, name, position, team), synced independently of any league. Bootstrapped from Sleeper's player list in Phase 2 (League Intel) so `Roster` has something to reference; enriched with additional sources starting Phase 3 (Unified Player Profiles). Never duplicated onto league-scoped rows — see ADR-003.
+- **Roster / Matchup / StandingSnapshot** — synced from Sleeper per League, current season only for Phase 2. `Roster` references `Player` by FK rather than duplicating player metadata.
+- **PlayerSourceRecord** — persisted entity, one row per Player × Source (Sleeper, KeepTradeCut, FantasyCalc, FantasyPros, extensible). Holds both a raw payload (verbatim provider response — source of truth for debugging/reparsing) and a normalized payload (application-facing). Introduced in Phase 3.
+- **PlayerProfile** — not persisted. A read-time DTO composed by a dedicated service from a `Player` and its `PlayerSourceRecord`s, exposing single- and batch-composition paths so multi-player reads (rosters, matchups, search, comparison) never trigger N+1 queries. This is the primary read model for player data app-wide. Introduced in Phase 3.
 
-No player-level stat granularity in v1 — that belongs to the deferred trade-analysis feature.
+Multi-source player data (trade values, expert rankings) is deferred to Phase 3 (Unified Player Profiles) — Phase 2 only needs `Player` as a lightweight identity for `Roster` to reference. See ADR-003, ADR-004.
 
 ### Sync
 
-An externally-triggered worker runs hourly-or-daily, pulls every League with at least one active membership, upserts roster/matchup/standings. No real-time/live-game polling in v1.
+An externally-triggered worker runs hourly-or-daily, pulls every League with at least one active membership, upserts roster/matchup/standings. No real-time/live-game polling. Sync is organized around providers rather than domain entities — see "Provider Abstraction" below.
 
 ### Access model
 
@@ -41,6 +44,18 @@ REST, stateless. `IConfiguration` for all environment-specific values; no hard-c
 
 Real unit tests on sync/analytics/domain logic, integration tests on the API — not exhaustive coverage chasing.
 
+### Layering conventions
+
+Domain entities are persistence-ignorant POCOs — no EF Core attributes or base classes. Table mapping, keys, relationships, and constraints are configured in the Persistence layer via Fluent API (`IEntityTypeConfiguration<T>`), never via data annotations on domain classes. Structured logging (`ILogger<T>`, structured message templates, not string concatenation) is used from the first milestone, not retrofitted later. `CancellationToken` propagates through async operations where appropriate, per modern ASP.NET Core practice.
+
+### Provider Abstraction
+
+Every external data source (Sleeper, KeepTradeCut, FantasyCalc, FantasyPros, and any future addition) will eventually implement a common provider interface, so a new provider can be added without touching the rest of the application. That interface is *extracted*, not designed upfront: Phase 2 ships Sleeper sync as a concrete, non-abstracted module (a single implementation gives no real evidence of what should be abstracted); the interface is introduced in Phase 3, once a second provider is actually being added. Once it exists, each provider module owns its own authentication (if applicable), parsing, sync scheduling, error handling, and rate limiting independently — sync is organized around providers, not domain entities. Raw provider payloads are preserved alongside normalized representations everywhere sync happens, starting in Phase 2 — this isn't gated on multiple providers existing. See ADR-004.
+
+### Player Profile
+
+The unified player view — compiled data from every source, sectioned by provenance — is the app's flagship feature (see ADR-003). `PlayerProfile` is composed server-side by a dedicated service from `Player` + `PlayerSourceRecord`s; the UI only renders what that service returns, sectioned by source, from a universal entry point (any player reference, on any screen). Identity resolution — matching an incoming source record to the correct `Player` — produces resolved / low-confidence / unresolved states; low-confidence and unresolved matches go to a future admin review interface for manual approve/reject/correct, which is intentionally minimal and functional (a data-quality tool, not a polished screen). Automated matching is a first pass; AI-assisted suggestions are a possible future enhancement; human review is always the authoritative fallback. Each `PlayerSourceRecord` degrades gracefully on provider failure — retaining last-successful data and a staleness indicator rather than going blank, and never affecting other sources in the same composed profile. The future comparison tool (Phase 4) reuses `PlayerProfile` directly. UI pattern (modal vs. side panel) is intentionally undecided pending the Figma design.
+
 ## 2. Deployment target: Azure (current, not a hard dependency)
 
 | Component | Azure realization | Why it stays swappable |
@@ -52,6 +67,8 @@ Real unit tests on sync/analytics/domain logic, integration tests on the API —
 | IaC | Bicep | Azure-native; inherently non-portable, but IaC gets rewritten on any cloud change regardless of which tool authored it |
 
 Honest limit of "portable" here: the **code** is portable, the **free-tier economics are not**. Azure SQL's free tier and Container Apps' free grant are Azure-specific pricing structures — moving clouds later means re-evaluating cost, not rewriting the app.
+
+Known operational characteristic: consumption-tier compute (Container Apps) and serverless-tier SQL may cold-start after idle. This is handled at deploy time (e.g. loading states, tier tuning) if it matters in practice — not a driver of the application architecture (see ADR-003).
 
 Deploys are manual for now (no CI/CD yet — deferred, see `docs/ROADMAP.md`).
 
@@ -66,6 +83,6 @@ Deploys are manual for now (no CI/CD yet — deferred, see `docs/ROADMAP.md`).
 
 `docker-compose.yml` at the repo root orchestrates API + local DB (+ worker later); `docker compose up` gets a working backend in one command. Config for local containers lives in compose/env files, not application code.
 
-## What's explicitly out of scope for v1
+## What's out of scope for the current roadmap
 
-Trade/roster analysis (needs KeepTradeCut/FantasyCalc/FantasyPros scraping — a separate, decoupled scraper module with cache-on-failure behavior), true multi-season history, real-time/live scoring, billing, CI/CD automation. See `docs/ROADMAP.md`.
+Real-time/live-game sync and billing are rejected/deferred indefinitely (ADR-002) — not scheduled in any phase. CI/CD automation (GitHub Actions) remains deferred; deploys stay manual through Phase 2 and beyond, revisited once there's more to protect with automated checks. Trade/roster analysis (multi-source player data) is **not** out of scope — it's Phase 3, Unified Player Profiles (ADR-003, ADR-004). True multi-season history is **not** out of scope — it's Phase 4, Analytics. See `docs/ROADMAP.md`.
