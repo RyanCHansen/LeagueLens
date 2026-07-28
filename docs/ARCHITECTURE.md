@@ -18,11 +18,11 @@ Three separate concerns, kept deliberately distinct: what the app *is* (portable
 
 ### Data model (conceptual)
 
-- **User** — LeagueLens account (ASP.NET Core Identity)
+- **UserProfile** — domain entity, persistence-ignorant POCO, related 1:1 to the ASP.NET Core Identity user via a foreign key to the Identity user's ID (never by inheritance). Holds LeagueLens-specific data (e.g. linked Sleeper user ID, display preferences); Identity itself is an infrastructure/persistence concern and is never referenced by domain code. See ADR-005.
 - **League** — first-class, shared entity keyed by Sleeper league ID. Synced once, not per-user.
 - **LeagueMembership** — links `User` ↔ `League` via the user's Sleeper user ID (many-to-many). This is what makes a shared League model work: if 10 LeagueLens users are in the same real Sleeper league, it's synced once and all 10 see it.
 - **Player** — global, first-class entity (canonical ID, name, position, team), synced independently of any league. Bootstrapped from Sleeper's player list in Phase 2 (League Intel) so `Roster` has something to reference; enriched with additional sources starting Phase 3 (Unified Player Profiles). Never duplicated onto league-scoped rows — see ADR-003.
-- **Roster / Matchup / StandingSnapshot** — synced from Sleeper per League, current season only for Phase 2. `Roster` references `Player` by FK rather than duplicating player metadata.
+- **Roster / Matchup** — synced from Sleeper per League, current season only for Phase 2. `Roster` references `Player` by FK rather than duplicating player metadata. Standings and power rankings are computed at query time from `Matchup` — no persisted snapshot entity in Phase 2 (see ADR-006). A persisted `StandingSnapshot` is deferred to Phase 4, once true multi-season history makes recomputing from raw matchup history on every read impractical.
 - **PlayerSourceRecord** — persisted entity, one row per Player × Source (Sleeper, KeepTradeCut, FantasyCalc, FantasyPros, extensible). Holds both a raw payload (verbatim provider response — source of truth for debugging/reparsing) and a normalized payload (application-facing). Introduced in Phase 3.
 - **PlayerProfile** — not persisted. A read-time DTO composed by a dedicated service from a `Player` and its `PlayerSourceRecord`s, exposing single- and batch-composition paths so multi-player reads (rosters, matchups, search, comparison) never trigger N+1 queries. This is the primary read model for player data app-wide. Introduced in Phase 3.
 
@@ -42,7 +42,7 @@ REST, stateless. `IConfiguration` for all environment-specific values; no hard-c
 
 ### Testing
 
-Real unit tests on sync/analytics/domain logic, integration tests on the API — not exhaustive coverage chasing.
+Real unit tests on sync/analytics/domain logic, integration tests on the API — not exhaustive coverage chasing. The test project is scaffolded as its own early milestone (Milestone 1.5, right after the Domain layer), not bundled in or deferred indefinitely — see ADR-005.
 
 ### Layering conventions
 
@@ -82,6 +82,8 @@ Deploys are manual for now (no CI/CD yet — deferred, see `docs/ROADMAP.md`).
 | Angular client | **Native** — `ng serve`, not containerized | Containerizing frontend dev servers is atypical: hot-reload/file-watching is meaningfully slower through Docker's bind-mount layer (especially on Windows), and the SPA has no environment-specific dependencies the way API+DB do |
 
 `docker-compose.yml` at the repo root orchestrates API + local DB (+ worker later); `docker compose up` gets a working backend in one command. Config for local containers lives in compose/env files, not application code.
+
+**Sequencing note:** SQL Server Express (installed directly, not containerized) is used for local development ahead of the Infrastructure layer milestone, so EF Core migrations can be authored and validated during the Persistence layer without waiting on `docker-compose.yml`. Docker remains the target for reproducible local dev and is added when the Infrastructure milestone lands — see ADR-005.
 
 ## What's out of scope for the current roadmap
 

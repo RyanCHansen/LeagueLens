@@ -89,3 +89,41 @@ Lightweight architecture decision log. One entry per significant decision: what 
 - Designing the common provider interface upfront, before any second provider exists — rejected per YAGNI; an interface extracted from ≥2 real implementations fits actual provider differences better than one speculatively generalized from a single case.
 - Entity-centric sync (a single "sync players" job pulling from all sources at once) — rejected: forces every provider's auth/rate-limit/error quirks into shared code instead of isolating them.
 - Normalizing on ingest without keeping the raw payload — rejected: a parser bug or upstream change would then be unrecoverable without a full resync.
+
+---
+
+## ADR-005: Identity kept out of the domain layer; test scaffolding sequenced as its own milestone; SQL Server Express ahead of Docker for local dev
+
+**Date:** 2026-07-28
+**Status:** Accepted
+
+**Decision:**
+- Domain entities never inherit from or otherwise directly reference ASP.NET Core Identity types (`IdentityUser`, `IdentityRole`, etc.). Identity is treated as an infrastructure/persistence concern only, configured in the Persistence/Infrastructure layer.
+- A domain `UserProfile` entity is introduced as a persistence-ignorant POCO, related 1:1 to the Identity user via a foreign key to the Identity user's ID — never by inheritance. `UserProfile` holds LeagueLens-specific data (e.g. linked Sleeper user ID, display preferences); the Identity user record exclusively owns credentials/auth.
+- Test project scaffolding is its own milestone — **Milestone 1.5** — run immediately after Milestone 1 (Domain layer) and before Persistence, rather than bundled into Domain or deferred indefinitely. Milestone 1 itself ships domain entities only, no test project.
+- For local development, SQL Server Express is used directly (not containerized) to validate EF Core migrations during the Persistence milestone. Docker-based local SQL Server (per ADR-002/`docs/ARCHITECTURE.md`) remains the target for the Infrastructure layer milestone later in Phase 2 — it isn't dropped, just no longer a prerequisite for validating migrations.
+
+**Why:**
+- `IdentityUser` inheritance would leak a persistence/framework-coupled type into the domain layer, breaking the persistence-ignorant POCO convention (`docs/ARCHITECTURE.md`, "Layering conventions") applied to every other entity. Composing via FK keeps domain logic testable without spinning up ASP.NET Core Identity infrastructure.
+- Splitting test scaffolding into its own milestone keeps Milestone 1 tightly scoped to domain modeling while still standing up testing infrastructure deliberately soon after, rather than bundling it in or deferring it indefinitely to "whenever there's time."
+- Docker's value is reproducibility and deploy-image parity, not migration correctness; SQL Server Express lets Persistence-layer work start immediately without depending on Infrastructure-layer tooling that's sequenced later for good reason.
+
+**Alternatives considered:**
+- `UserProfile` inheriting from `IdentityUser<Guid>` — rejected: couples the domain layer to an ASP.NET Core Identity/EF type.
+- Bundling the test project into Milestone 1 — rejected for now in favor of a dedicated, smaller milestone (1.5) directly after it.
+- Waiting for `docker-compose` before validating any EF Core migration — rejected: blocks Persistence-layer work on Infrastructure-layer work with no compensating benefit during solo local development.
+
+---
+
+## ADR-006: Standings computed at query time in Phase 2; `StandingSnapshot` deferred to Phase 4
+
+**Date:** 2026-07-28
+**Status:** Accepted
+
+**Decision:** `StandingSnapshot` is removed from the Phase 2 (League Intel) domain layer. Phase 2's standings, power rankings, and in-season trends (ADR-002 v1 feature scope) are computed at query time in the Application layer from persisted `Matchup` (and `Roster`) data — current-season scores are already synced weekly, so no additional persisted entity is needed to derive them. A persisted `StandingSnapshot` (or equivalent) entity is deferred to Phase 4 (Analytics), where it earns its keep once true multi-season history is in scope and recomputing standings from every historical matchup on every read becomes wasteful.
+
+**Why:** Phase 2 only needs current-season standings/trends, which are a straightforward aggregation over already-persisted `Matchup` rows — persisting a redundant snapshot table adds write-path complexity (keeping it in sync with `Matchup`) without a corresponding read benefit yet. Deferring it to Phase 4 keeps Phase 2's domain layer smaller and avoids designing a snapshot schema before multi-season requirements (retention, historical comparison) are concrete.
+
+**Alternatives considered:**
+- Keeping `StandingSnapshot` in Phase 2 as originally scoped — rejected: no current read pattern needs a persisted snapshot when the source data (`Matchup`) is already there and current-season volume is small.
+- Removing standings/power-rankings from Phase 2 scope entirely — rejected: not requested; ADR-002's v1 feature scope is unchanged, only how it's computed shifts.

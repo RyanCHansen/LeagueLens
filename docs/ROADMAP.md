@@ -3,9 +3,10 @@
 - **Phase 1 — Foundation** ✅ Done. Repo renamed to LeagueLens, demo scaffold removed, baseline docs in place, architecture planning complete (see `docs/ARCHITECTURE.md` and `docs/DECISIONS.md`, ADR-001 through ADR-004).
 
 - **Phase 2 — League Intel** ⏳ Next. Standings, power rankings, in-season trends, matchup previews/recaps, on Sleeper-only data. Built as a complete vertical slice, layer by layer:
-  1. **Domain** — `User`, `League`, `LeagueMembership`, `Roster`, `Matchup`, `StandingSnapshot`, and `Player` (lightweight identity, bootstrapped from Sleeper's player list so `Roster` has something to reference) as persistence-ignorant POCOs.
-  2. **Persistence** — EF Core `DbContext` + Fluent API configurations + migrations for the above.
-  3. **Application** — concrete Sleeper sync module (no provider interface yet — single provider, nothing to abstract), standings/power-ranking/trend calculation services, structured logging throughout.
+  1. **Domain** — `UserProfile`, `League`, `LeagueMembership`, `Roster`, `Matchup`, and `Player` (lightweight identity, bootstrapped from Sleeper's player list so `Roster` has something to reference) as persistence-ignorant POCOs. `UserProfile` relates 1:1 to the ASP.NET Core Identity user by FK, never by inheritance (ADR-005). No `StandingSnapshot` entity yet — standings/power-rankings are computed at query time from `Matchup` in Phase 2 (ADR-006).
+  1.5. **Testing infrastructure** — test project scaffolded (framework, project reference, conventions) with initial tests against the Milestone 1 domain entities, sequenced right after Domain and before Persistence (ADR-005).
+  2. **Persistence** — EF Core `DbContext` + Fluent API configurations + migrations for the above, including Identity's own tables (configured as an infrastructure concern, not domain). Validated locally against SQL Server Express directly (not containerized yet — ADR-005).
+  3. **Application** — concrete Sleeper sync module (no provider interface yet — single provider, nothing to abstract), standings/power-ranking/trend calculation services computed at query time from `Matchup` (ADR-006), structured logging throughout.
   4. **API** — endpoints for standings, power rankings, trends, matchup previews/recaps.
   5. **Infrastructure** — `docker-compose.yml` (API + local SQL Server), `scripts/` folder (setup, DB reset, dev data seeding, local startup), Azure deployment via Bicep (Static Web Apps + Container Apps + Container Apps Jobs + Azure SQL), manual deploy.
   6. **Frontend** — Angular UI, following a Figma design (not yet shared) once available; no frontend work starts before that.
@@ -20,7 +21,7 @@
 
 - **Phase 4 — Analytics**. Not started, deferred until Phase 3 is real.
   - Multi-player comparison tool, built directly on `PlayerProfile` — no new aggregation logic needed.
-  - True multi-season history.
+  - True multi-season history, including a persisted `StandingSnapshot` entity (deferred from Phase 2 — see ADR-006) once recomputing standings from raw matchup history on every read no longer scales.
 
 - **Phase 5 — AI Assistant** (TBD). Not started, scope undefined. AI-assisted identity-match suggestions (Phase 3) are one possible candidate for this phase, not committed scope.
 
