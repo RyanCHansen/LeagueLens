@@ -5,5 +5,6 @@
   </Project>
   <Project Path="LeagueLens.Domain.Tests/LeagueLens.Domain.Tests.csproj" />
   <Project Path="LeagueLens.Domain/LeagueLens.Domain.csproj" />
+  <Project Path="LeagueLens.Persistence/LeagueLens.Persistence.csproj" />
   <Project Path="LeagueLens.Server/LeagueLens.Server.csproj" />
 </Solution>
