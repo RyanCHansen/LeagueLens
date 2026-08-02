@@ -1,3 +1,4 @@
+using LeagueLens.Application.DependencyInjection;
 using LeagueLens.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +12,8 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddDbContext<LeagueLensDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("LeagueLensDb")));
+
+builder.Services.AddSleeperSync();
 
 var app = builder.Build();
 

@@ -3,6 +3,8 @@
     <Build />
     <Deploy />
   </Project>
+  <Project Path="LeagueLens.Application.Tests/LeagueLens.Application.Tests.csproj" />
+  <Project Path="LeagueLens.Application/LeagueLens.Application.csproj" />
   <Project Path="LeagueLens.Domain.Tests/LeagueLens.Domain.Tests.csproj" />
   <Project Path="LeagueLens.Domain/LeagueLens.Domain.csproj" />
   <Project Path="LeagueLens.Persistence/LeagueLens.Persistence.csproj" />

@@ -25,6 +25,7 @@
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
     <ProjectReference Include="..\LeagueLens.Persistence\LeagueLens.Persistence.csproj" />
+    <ProjectReference Include="..\LeagueLens.Application\LeagueLens.Application.csproj" />
   </ItemGroup>
 
 </Project>
