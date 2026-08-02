@@ -1,3 +1,4 @@
+using LeagueLens.Application.LeagueIntel;
 using LeagueLens.Application.Sleeper.Client;
 using LeagueLens.Application.Sleeper.Sync;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +21,20 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<RosterSyncer>();
         services.AddScoped<MatchupSyncer>();
         services.AddScoped<SleeperSyncService>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddLeagueIntel(this IServiceCollection services)
+    {
+        services.AddOptions<LeagueIntelOptions>()
+            .Validate(
+                o => o.PowerRankingWinPctWeight + o.PowerRankingPointsForWeight == 1.0m,
+                $"{nameof(LeagueIntelOptions.PowerRankingWinPctWeight)} and {nameof(LeagueIntelOptions.PowerRankingPointsForWeight)} must sum to 1.0.")
+            .ValidateOnStart();
+
+        services.AddSingleton<IPowerRankingCalculator, BlendedPowerRankingCalculator>();
+        services.AddScoped<LeagueIntelService>();
 
         return services;
     }

@@ -14,6 +14,7 @@ builder.Services.AddDbContext<LeagueLensDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("LeagueLensDb")));
 
 builder.Services.AddSleeperSync();
+builder.Services.AddLeagueIntel();
 
 var app = builder.Build();
 
