@@ -1,3 +1,4 @@
+using LeagueLens.Application.Sleeper.Client;
 using LeagueLens.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -5,6 +6,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace LeagueLens.Server.Tests.TestSupport;
 
@@ -14,6 +16,8 @@ namespace LeagueLens.Server.Tests.TestSupport;
 public sealed class SleeperTestWebApplicationFactory : WebApplicationFactory<Program>
 {
     private readonly SqliteConnection _connection = new("Filename=:memory:");
+
+    public FakeSleeperApiClient SleeperApiClient { get; } = new();
 
     public SleeperTestWebApplicationFactory() => _connection.Open();
 
@@ -35,6 +39,12 @@ public sealed class SleeperTestWebApplicationFactory : WebApplicationFactory<Pro
                 services.Remove(descriptor);
 
             services.AddDbContext<LeagueLensDbContext>(options => options.UseSqlite(_connection));
+
+            // Program.cs registers a real SleeperApiClient (via AddSleeperSync()) pointed at the
+            // live Sleeper API. Swapped for a fake so endpoints that call Sleeper (the live
+            // preview) don't make real network calls during tests.
+            services.RemoveAll<ISleeperApiClient>();
+            services.AddSingleton<ISleeperApiClient>(SleeperApiClient);
         });
     }
 

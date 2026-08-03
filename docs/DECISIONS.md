@@ -146,3 +146,22 @@ Lightweight architecture decision log. One entry per significant decision: what 
 **Alternatives considered:**
 - Renaming the columns to something neutral but still flat (e.g. `TeamOneMembershipId`/`TeamTwoMembershipId`) — rejected: still bakes an arbitrary two-slot ordering into the schema, just relabeled; doesn't actually remove the fabricated distinction, only its name.
 - Leaving `Matchup` as-is and only changing the API response shape — rejected: doesn't address the actual concern, which is that the domain/persistence layer itself shouldn't encode a distinction the business domain doesn't have.
+
+---
+
+## ADR-008: On-demand live Sleeper reads are allowed for current-week previews; still no background live-game sync
+
+**Date:** 2026-08-03
+**Status:** Accepted
+
+**Decision:** `LeaguesController`'s new `GET weeks/preview` endpoint (Milestone 4d) calls the Sleeper API live, once per request, via `IWeekPreviewService` → `ISleeperApiClient` — the first endpoint in this API that reads anything beyond the local database. This is scoped narrowly: an on-demand read triggered by an individual HTTP request, going through the existing `ISleeperApiClient` abstraction (never raw `HttpClient` calls from the controller or service), with no new background job, scheduled task, or polling loop. Sleeper API failures are caught in the controller and translated to a `502 Bad Gateway` `ProblemDetails` response (`SleeperUnavailable()`, mirroring the existing `LeagueNotFound`/`WeekNotFound` helpers) rather than surfacing a raw exception or generic 500.
+
+**Why this doesn't conflict with ADR-002:** ADR-002 rejected "near-real-time/live-game sync" for v1 — specifically a recurring background worker continuously polling Sleeper to keep persisted data fresh during live games, called out there as "incompatible with the free compute budget." That is a fundamentally different resource-usage pattern than this milestone: a background poller runs continuously regardless of traffic; this endpoint only calls Sleeper when a client actually requests a preview, at most once per request. ADR-002's own v1 feature scope explicitly includes "matchup previews & recaps" — this milestone is that scope item, not a reversal of the earlier rejection. The distinction that matters is *continuous background polling* (rejected) vs. *on-demand request-triggered reads* (allowed) — not "live data" vs. "not live data" in general.
+
+**Why live reads are needed at all:** `SleeperSyncService` deliberately never persists the current (in-progress/upcoming) week — `throughWeek = state.Week - 1` — so partial/live scores never distort standings (see the sync service's own comment). Roster ownership (`roster_id` → Sleeper user ID) also isn't persisted anywhere in the domain model — only roster *composition* is (`Roster` entity). A current-week preview therefore has no persisted source to read from at all; a live call is the only option, not a shortcut around the existing sync pipeline.
+
+**Scope for this milestone specifically:** bare team pairing only — no scores (the games haven't happened), no standings/power-ranking context, no projections, no AI-generated text. The goal is establishing that the live-read pattern works reliably end-to-end (fetch, map, error-handle) before building anything richer on top of it in a later milestone.
+
+**Alternatives considered:**
+- Extending `SleeperSyncService` to also persist the current week's pairing — rejected for this milestone: reopens the exact partial/live-score risk the sync layer was deliberately built to avoid, and turns a read-only API feature into a persistence/migration change for no immediate benefit.
+- Enriching the preview with standings/power-ranking context in the same milestone — rejected for now: conflates "does the live-read pattern work" with "what should a rich preview contain," better validated separately. Revisit once this pattern is proven.

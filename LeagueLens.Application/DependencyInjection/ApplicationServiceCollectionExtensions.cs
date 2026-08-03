@@ -25,6 +25,8 @@ public static class ApplicationServiceCollectionExtensions
         return services;
     }
 
+    // Depends on ISleeperApiClient (registered by AddSleeperSync()) for IWeekPreviewService --
+    // callers must also call AddSleeperSync(), same as Program.cs does.
     public static IServiceCollection AddLeagueIntel(this IServiceCollection services)
     {
         services.AddOptions<LeagueIntelOptions>()
@@ -38,6 +40,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<ILeagueIntelService, LeagueIntelService>();
         services.AddScoped<IWeekRecapService, WeekRecapService>();
         services.AddScoped<IWeekHighlightsService, WeekHighlightsService>();
+        services.AddScoped<IWeekPreviewService, WeekPreviewService>();
 
         return services;
     }
