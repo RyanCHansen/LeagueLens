@@ -9,4 +9,5 @@
   <Project Path="LeagueLens.Domain/LeagueLens.Domain.csproj" />
   <Project Path="LeagueLens.Persistence/LeagueLens.Persistence.csproj" />
   <Project Path="LeagueLens.Server/LeagueLens.Server.csproj" />
+  <Project Path="LeagueLens.Server.Tests/LeagueLens.Server.Tests.csproj" />
 </Solution>

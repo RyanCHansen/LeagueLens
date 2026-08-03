@@ -33,8 +33,9 @@ public static class ApplicationServiceCollectionExtensions
                 $"{nameof(LeagueIntelOptions.PowerRankingWinPctWeight)} and {nameof(LeagueIntelOptions.PowerRankingPointsForWeight)} must sum to 1.0.")
             .ValidateOnStart();
 
+        services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IPowerRankingCalculator, BlendedPowerRankingCalculator>();
-        services.AddScoped<LeagueIntelService>();
+        services.AddScoped<ILeagueIntelService, LeagueIntelService>();
 
         return services;
     }

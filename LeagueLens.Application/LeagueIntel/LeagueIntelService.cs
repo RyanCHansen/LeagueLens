@@ -5,41 +5,42 @@ using Microsoft.Extensions.Options;
 
 namespace LeagueLens.Application.LeagueIntel;
 
-/// <summary>
-/// Computes standings, power rankings, and trends for a league at query time from persisted
-/// <see cref="Matchup"/> rows — no snapshot is stored (see ADR-006).
-/// </summary>
+/// <inheritdoc cref="ILeagueIntelService"/>
 public sealed class LeagueIntelService(
     LeagueLensDbContext db,
     IPowerRankingCalculator powerRankingCalculator,
-    IOptions<LeagueIntelOptions> options)
+    IOptions<LeagueIntelOptions> options,
+    TimeProvider timeProvider) : ILeagueIntelService
 {
-    /// <summary>Current-season standings for the league, through the latest played week.</summary>
-    public async Task<IReadOnlyList<StandingsEntry>> GetStandingsAsync(Guid leagueId, CancellationToken ct)
+    public async Task<LeagueIntelSummary?> GetLeagueIntelAsync(string sleeperLeagueId, CancellationToken ct)
     {
-        var (memberships, matchups) = await LoadLeagueDataAsync(leagueId, ct);
-        return RankStandings(BuildTeamStats(memberships, matchups));
+        var league = await db.Leagues.SingleOrDefaultAsync(l => l.SleeperLeagueId == sleeperLeagueId, ct);
+        if (league is null)
+            return null;
+
+        var memberships = await db.LeagueMemberships.Where(m => m.LeagueId == league.Id).ToListAsync(ct);
+        var matchups = await db.Matchups.Where(m => m.LeagueId == league.Id).ToListAsync(ct);
+
+        var stats = BuildTeamStats(memberships, matchups);
+        var standings = RankStandings(stats);
+        var powerRankings = RankPowerRankings(stats);
+        var trends = ComputeTrends(memberships, matchups, standings);
+        var throughWeek = matchups.Count == 0 ? 0 : matchups.Max(m => m.Week);
+
+        return new LeagueIntelSummary(
+            sleeperLeagueId, league.Season, throughWeek, timeProvider.GetUtcNow(),
+            standings, powerRankings, trends);
     }
 
-    /// <summary>Current power rankings for the league, through the latest played week.</summary>
-    public async Task<IReadOnlyList<PowerRankingEntry>> GetPowerRankingsAsync(Guid leagueId, CancellationToken ct)
+    private IReadOnlyList<TrendEntry> ComputeTrends(
+        IReadOnlyList<LeagueMembership> memberships,
+        IReadOnlyList<Matchup> matchups,
+        IReadOnlyList<StandingsEntry> currentStandings)
     {
-        var (memberships, matchups) = await LoadLeagueDataAsync(leagueId, ct);
-        return RankPowerRankings(BuildTeamStats(memberships, matchups));
-    }
-
-    /// <summary>
-    /// Standing-movement and scoring-trend indicators for each team, comparing the current
-    /// state against <see cref="LeagueIntelOptions.TrendWindowWeeks"/> weeks ago.
-    /// </summary>
-    public async Task<IReadOnlyList<TrendEntry>> GetTrendsAsync(Guid leagueId, CancellationToken ct)
-    {
-        var (memberships, matchups) = await LoadLeagueDataAsync(leagueId, ct);
         var window = options.Value.TrendWindowWeeks;
         var latestWeek = matchups.Count == 0 ? 0 : matchups.Max(m => m.Week);
 
-        var currentRanks = RankStandings(BuildTeamStats(memberships, matchups))
-            .ToDictionary(s => s.LeagueMembershipId, s => s.Rank);
+        var currentRanks = currentStandings.ToDictionary(s => s.LeagueMembershipId, s => s.Rank);
 
         Dictionary<Guid, int>? priorRanks = null;
         if (latestWeek >= window + 1)
@@ -71,13 +72,6 @@ public sealed class LeagueIntelService(
             .OrderBy(t => t.TeamName ?? string.Empty, StringComparer.Ordinal)
             .ThenBy(t => t.LeagueMembershipId)
             .ToList();
-    }
-
-    private async Task<(List<LeagueMembership> Memberships, List<Matchup> Matchups)> LoadLeagueDataAsync(Guid leagueId, CancellationToken ct)
-    {
-        var memberships = await db.LeagueMemberships.Where(m => m.LeagueId == leagueId).ToListAsync(ct);
-        var matchups = await db.Matchups.Where(m => m.LeagueId == leagueId).ToListAsync(ct);
-        return (memberships, matchups);
     }
 
     private static List<TeamStats> BuildTeamStats(IReadOnlyList<LeagueMembership> memberships, IReadOnlyList<Matchup> matchups)
