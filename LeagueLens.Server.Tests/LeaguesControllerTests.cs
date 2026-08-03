@@ -125,11 +125,12 @@ public sealed class LeaguesControllerTests : IAsyncLifetime
         Assert.Equal(1, result.Week);
         var entry = Assert.Single(result.Matchups);
         Assert.Equal(10, entry.MarginOfVictory);
-        var byTeamName = new[] { entry.TeamA, entry.TeamB }.ToDictionary(p => p.TeamName);
-        Assert.Equal(100, byTeamName["Alpha"].Score);
-        Assert.Equal(MatchupOutcome.Win, byTeamName["Alpha"].Outcome);
-        Assert.Equal(90, byTeamName["Beta"].Score);
-        Assert.Equal(MatchupOutcome.Loss, byTeamName["Beta"].Outcome);
+        Assert.Equal("Alpha", entry.TeamA.TeamName);
+        Assert.Equal(100, entry.TeamA.Score);
+        Assert.Equal(MatchupOutcome.Win, entry.TeamA.Outcome);
+        Assert.Equal("Beta", entry.TeamB.TeamName);
+        Assert.Equal(90, entry.TeamB.Score);
+        Assert.Equal(MatchupOutcome.Loss, entry.TeamB.Outcome);
     }
 
     [Fact]
