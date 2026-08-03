@@ -105,6 +105,7 @@ public sealed class LeaguesControllerTests : IAsyncLifetime
     [InlineData("/api/leagues/unknown/power-rankings")]
     [InlineData("/api/leagues/unknown/trends")]
     [InlineData("/api/leagues/unknown/summary")]
+    [InlineData("/api/leagues/unknown/weeks/1/recap")]
     public async Task Endpoints_ReturnProblemDetails404_WhenLeagueUnknown(string requestUri)
     {
         var response = await _client.GetAsync(requestUri);
@@ -115,5 +116,50 @@ public sealed class LeaguesControllerTests : IAsyncLifetime
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         Assert.NotNull(problem);
         Assert.Equal("League not found", problem.Title);
+    }
+
+    [Fact]
+    public async Task GetWeekRecap_ReturnsRecap_WhenWeekExists()
+    {
+        await SeedLeagueAsync("L5");
+
+        var result = await _client.GetFromJsonAsync<WeekRecapResult>("/api/leagues/L5/weeks/1/recap");
+
+        Assert.NotNull(result);
+        Assert.Equal("L5", result.SleeperLeagueId);
+        Assert.Equal(2026, result.Season);
+        Assert.Equal(1, result.Week);
+        var entry = Assert.Single(result.Matchups);
+        Assert.Equal("Alpha", entry.HomeTeamName);
+        Assert.Equal(100, entry.HomeScore);
+        Assert.Equal("Beta", entry.AwayTeamName);
+        Assert.Equal(90, entry.AwayScore);
+        Assert.Equal(10, entry.MarginOfVictory);
+        Assert.Equal(MatchupWinner.Home, entry.Winner);
+    }
+
+    [Fact]
+    public async Task GetWeekRecap_SerializesWinner_AsLowercaseString()
+    {
+        await SeedLeagueAsync("L7");
+
+        var json = await _client.GetStringAsync("/api/leagues/L7/weeks/1/recap");
+
+        Assert.Contains("\"winner\":\"home\"", json);
+    }
+
+    [Fact]
+    public async Task GetWeekRecap_ReturnsProblemDetails404_WhenWeekHasNoMatchupData()
+    {
+        await SeedLeagueAsync("L6");
+
+        var response = await _client.GetAsync("/api/leagues/L6/weeks/2/recap");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Equal("Week not found", problem.Title);
     }
 }
