@@ -6,7 +6,10 @@ namespace LeagueLens.Server.Controllers;
 /// <summary>League-scoped read endpoints (standings, power rankings, trends).</summary>
 [ApiController]
 [Route("api/leagues/{sleeperLeagueId}")]
-public sealed class LeaguesController(ILeagueIntelService leagueIntelService, IWeekRecapService weekRecapService) : ControllerBase
+public sealed class LeaguesController(
+    ILeagueIntelService leagueIntelService,
+    IWeekRecapService weekRecapService,
+    IWeekHighlightsService weekHighlightsService) : ControllerBase
 {
     /// <summary>Current-season standings for the league, through the latest played week.</summary>
     /// <response code="404">No league with the given Sleeper league ID has been synced.</response>
@@ -53,6 +56,17 @@ public sealed class LeaguesController(ILeagueIntelService leagueIntelService, IW
         if (!lookup.LeagueExists)
             return LeagueNotFound(sleeperLeagueId);
         return lookup.Recap is null ? WeekNotFound(sleeperLeagueId, week) : Ok(lookup.Recap);
+    }
+
+    /// <summary>League-wide highlights (highest score, closest game, biggest blowout) for a single completed week.</summary>
+    /// <response code="404">No league with the given Sleeper league ID has been synced, or that league has no persisted matchup data for the given week.</response>
+    [HttpGet("weeks/{week:int}/highlights")]
+    public async Task<ActionResult<WeekHighlightsResult>> GetWeekHighlights(string sleeperLeagueId, int week, CancellationToken ct)
+    {
+        var lookup = await weekHighlightsService.GetWeekHighlightsAsync(sleeperLeagueId, week, ct);
+        if (!lookup.LeagueExists)
+            return LeagueNotFound(sleeperLeagueId);
+        return lookup.Highlights is null ? WeekNotFound(sleeperLeagueId, week) : Ok(lookup.Highlights);
     }
 
     private ObjectResult LeagueNotFound(string sleeperLeagueId) =>

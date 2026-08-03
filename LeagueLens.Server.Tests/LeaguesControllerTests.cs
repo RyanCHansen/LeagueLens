@@ -100,6 +100,7 @@ public sealed class LeaguesControllerTests : IAsyncLifetime
     [InlineData("/api/leagues/unknown/trends")]
     [InlineData("/api/leagues/unknown/summary")]
     [InlineData("/api/leagues/unknown/weeks/1/recap")]
+    [InlineData("/api/leagues/unknown/weeks/1/highlights")]
     public async Task Endpoints_ReturnProblemDetails404_WhenLeagueUnknown(string requestUri)
     {
         var response = await _client.GetAsync(requestUri);
@@ -153,6 +154,38 @@ public sealed class LeaguesControllerTests : IAsyncLifetime
         await SeedLeagueAsync("L6");
 
         var response = await _client.GetAsync("/api/leagues/L6/weeks/2/recap");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Equal("Week not found", problem.Title);
+    }
+
+    [Fact]
+    public async Task GetWeekHighlights_ReturnsHighlights_WhenWeekExists()
+    {
+        await SeedLeagueAsync("L8");
+
+        var result = await _client.GetFromJsonAsync<WeekHighlightsResult>("/api/leagues/L8/weeks/1/highlights");
+
+        Assert.NotNull(result);
+        Assert.Equal("L8", result.SleeperLeagueId);
+        Assert.Equal(2026, result.Season);
+        Assert.Equal(1, result.Week);
+        Assert.Equal("Highest Scoring Team", result.HighestScoringTeam.Label);
+        Assert.Equal("Closest Game", result.ClosestGame.Label);
+        Assert.Equal("Biggest Blowout", result.BiggestBlowout.Label);
+        Assert.Equal(10, result.ClosestGame.Matchup.MarginOfVictory);
+    }
+
+    [Fact]
+    public async Task GetWeekHighlights_ReturnsProblemDetails404_WhenWeekHasNoMatchupData()
+    {
+        await SeedLeagueAsync("L9");
+
+        var response = await _client.GetAsync("/api/leagues/L9/weeks/2/highlights");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);

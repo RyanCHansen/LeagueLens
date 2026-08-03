@@ -37,6 +37,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddSingleton<IPowerRankingCalculator, BlendedPowerRankingCalculator>();
         services.AddScoped<ILeagueIntelService, LeagueIntelService>();
         services.AddScoped<IWeekRecapService, WeekRecapService>();
+        services.AddScoped<IWeekHighlightsService, WeekHighlightsService>();
 
         return services;
     }
