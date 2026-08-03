@@ -32,19 +32,13 @@ public sealed class LeaguesControllerTests : IAsyncLifetime
 
         await _factory.SeedAsync(db =>
         {
+            var matchupId = Guid.NewGuid();
             db.Leagues.Add(new League { Id = leagueId, SleeperLeagueId = sleeperLeagueId, Name = "Test League", Season = 2026 });
             db.LeagueMemberships.Add(new LeagueMembership { Id = alphaId, LeagueId = leagueId, SleeperUserId = "u1", TeamName = "Alpha" });
             db.LeagueMemberships.Add(new LeagueMembership { Id = betaId, LeagueId = leagueId, SleeperUserId = "u2", TeamName = "Beta" });
-            db.Matchups.Add(new Matchup
-            {
-                Id = Guid.NewGuid(),
-                LeagueId = leagueId,
-                Week = 1,
-                HomeLeagueMembershipId = alphaId,
-                HomeScore = 100,
-                AwayLeagueMembershipId = betaId,
-                AwayScore = 90,
-            });
+            db.Matchups.Add(new Matchup { Id = matchupId, LeagueId = leagueId, Week = 1 });
+            db.MatchupParticipants.Add(new MatchupParticipant { Id = Guid.NewGuid(), MatchupId = matchupId, LeagueMembershipId = alphaId, Score = 100 });
+            db.MatchupParticipants.Add(new MatchupParticipant { Id = Guid.NewGuid(), MatchupId = matchupId, LeagueMembershipId = betaId, Score = 90 });
             return Task.CompletedTask;
         });
     }

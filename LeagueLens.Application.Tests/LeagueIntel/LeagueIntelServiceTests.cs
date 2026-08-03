@@ -33,17 +33,13 @@ public class LeagueIntelServiceTests : SqliteBackedTestBase
         return membership;
     }
 
-    private void AddMatchup(int week, Guid homeId, decimal homeScore, Guid awayId, decimal awayScore) =>
-        Db.Matchups.Add(new Matchup
-        {
-            Id = Guid.NewGuid(),
-            LeagueId = _leagueId,
-            Week = week,
-            HomeLeagueMembershipId = homeId,
-            HomeScore = homeScore,
-            AwayLeagueMembershipId = awayId,
-            AwayScore = awayScore,
-        });
+    private void AddMatchup(int week, Guid firstId, decimal firstScore, Guid secondId, decimal secondScore)
+    {
+        var matchupId = Guid.NewGuid();
+        Db.Matchups.Add(new Matchup { Id = matchupId, LeagueId = _leagueId, Week = week });
+        Db.MatchupParticipants.Add(new MatchupParticipant { Id = Guid.NewGuid(), MatchupId = matchupId, LeagueMembershipId = firstId, Score = firstScore });
+        Db.MatchupParticipants.Add(new MatchupParticipant { Id = Guid.NewGuid(), MatchupId = matchupId, LeagueMembershipId = secondId, Score = secondScore });
+    }
 
     private async Task<LeagueIntelSummary> GetIntelAsync()
     {

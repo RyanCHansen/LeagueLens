@@ -19,12 +19,19 @@ public sealed class WeekRecapService(LeagueLensDbContext db) : IWeekRecapService
         if (matchups.Count == 0)
             return new WeekRecapLookupResult(LeagueExists: true, Recap: null);
 
+        var matchupIds = matchups.Select(m => m.Id).ToList();
+        var participants = await db.MatchupParticipants
+            .Where(p => matchupIds.Contains(p.MatchupId))
+            .ToListAsync(ct);
         var teamNames = await db.LeagueMemberships
             .Where(m => m.LeagueId == league.Id)
             .ToDictionaryAsync(m => m.Id, m => m.TeamName, ct);
 
+        var participantsByMatchupId = participants.ToLookup(p => p.MatchupId);
+
         var entries = matchups
-            .Select(m => ToRecapEntry(m, teamNames))
+            .Where(m => participantsByMatchupId[m.Id].Count() == 2)
+            .Select(m => ToRecapEntry(participantsByMatchupId[m.Id].ToList(), teamNames))
             .OrderBy(e => e.HomeTeamName ?? string.Empty, StringComparer.Ordinal)
             .ThenBy(e => e.HomeLeagueMembershipId)
             .ToList();
@@ -33,18 +40,29 @@ public sealed class WeekRecapService(LeagueLensDbContext db) : IWeekRecapService
         return new WeekRecapLookupResult(LeagueExists: true, Recap: recap);
     }
 
-    private static MatchupRecapEntry ToRecapEntry(Matchup matchup, IReadOnlyDictionary<Guid, string?> teamNames)
+    // The domain model has no concept of "home"/"away" (see ADR-007) -- a matchup is just two
+    // participants. The Home/Away-shaped response below is a placeholder kept for this
+    // milestone's compile/test stability only; picking a side deterministically (by team name,
+    // then membership ID, matching the tie-break convention used elsewhere in this service) is
+    // an API-layer display choice, not a persisted or business-meaningful distinction. This
+    // response shape is expected to be redesigned in a follow-up milestone.
+    private static MatchupRecapEntry ToRecapEntry(IReadOnlyList<MatchupParticipant> pair, IReadOnlyDictionary<Guid, string?> teamNames)
     {
-        teamNames.TryGetValue(matchup.HomeLeagueMembershipId, out var homeTeamName);
-        teamNames.TryGetValue(matchup.AwayLeagueMembershipId, out var awayTeamName);
+        teamNames.TryGetValue(pair[0].LeagueMembershipId, out var firstName);
+        teamNames.TryGetValue(pair[1].LeagueMembershipId, out var secondName);
 
-        var winner = matchup.HomeScore == matchup.AwayScore
+        var firstIsHome = string.CompareOrdinal(firstName ?? string.Empty, secondName ?? string.Empty) < 0 ||
+            (firstName == secondName && pair[0].LeagueMembershipId.CompareTo(pair[1].LeagueMembershipId) < 0);
+        var (home, away) = firstIsHome ? (pair[0], pair[1]) : (pair[1], pair[0]);
+        var (homeName, awayName) = firstIsHome ? (firstName, secondName) : (secondName, firstName);
+
+        var winner = home.Score == away.Score
             ? MatchupWinner.Tie
-            : matchup.HomeScore > matchup.AwayScore ? MatchupWinner.Home : MatchupWinner.Away;
+            : home.Score > away.Score ? MatchupWinner.Home : MatchupWinner.Away;
 
         return new MatchupRecapEntry(
-            matchup.HomeLeagueMembershipId, homeTeamName, matchup.HomeScore,
-            matchup.AwayLeagueMembershipId, awayTeamName, matchup.AwayScore,
-            Math.Abs(matchup.HomeScore - matchup.AwayScore), winner);
+            home.LeagueMembershipId, homeName, home.Score,
+            away.LeagueMembershipId, awayName, away.Score,
+            Math.Abs(home.Score - away.Score), winner);
     }
 }

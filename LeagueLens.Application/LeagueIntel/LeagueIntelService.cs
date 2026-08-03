@@ -20,11 +20,13 @@ public sealed class LeagueIntelService(
 
         var memberships = await db.LeagueMemberships.Where(m => m.LeagueId == league.Id).ToListAsync(ct);
         var matchups = await db.Matchups.Where(m => m.LeagueId == league.Id).ToListAsync(ct);
+        var matchupIds = matchups.Select(m => m.Id).ToList();
+        var participants = await db.MatchupParticipants.Where(p => matchupIds.Contains(p.MatchupId)).ToListAsync(ct);
 
-        var stats = BuildTeamStats(memberships, matchups);
+        var stats = BuildTeamStats(memberships, participants);
         var standings = RankStandings(stats);
         var powerRankings = RankPowerRankings(stats);
-        var trends = ComputeTrends(memberships, matchups, standings);
+        var trends = ComputeTrends(memberships, matchups, participants, standings);
         var throughWeek = matchups.Count == 0 ? 0 : matchups.Max(m => m.Week);
 
         return new LeagueIntelSummary(
@@ -35,6 +37,7 @@ public sealed class LeagueIntelService(
     private IReadOnlyList<TrendEntry> ComputeTrends(
         IReadOnlyList<LeagueMembership> memberships,
         IReadOnlyList<Matchup> matchups,
+        IReadOnlyList<MatchupParticipant> participants,
         IReadOnlyList<StandingsEntry> currentStandings)
     {
         var window = options.Value.TrendWindowWeeks;
@@ -45,8 +48,9 @@ public sealed class LeagueIntelService(
         Dictionary<Guid, int>? priorRanks = null;
         if (latestWeek >= window + 1)
         {
-            var priorMatchups = matchups.Where(m => m.Week <= latestWeek - window).ToList();
-            priorRanks = RankStandings(BuildTeamStats(memberships, priorMatchups))
+            var priorMatchupIds = matchups.Where(m => m.Week <= latestWeek - window).Select(m => m.Id).ToHashSet();
+            var priorParticipants = participants.Where(p => priorMatchupIds.Contains(p.MatchupId)).ToList();
+            priorRanks = RankStandings(BuildTeamStats(memberships, priorParticipants))
                 .ToDictionary(s => s.LeagueMembershipId, s => s.Rank);
         }
 
@@ -54,13 +58,13 @@ public sealed class LeagueIntelService(
         Dictionary<Guid, decimal>? priorAvg = null;
         if (latestWeek >= window * 2)
         {
-            var recentMatchups = matchups.Where(m => m.Week > latestWeek - window).ToList();
-            var priorWindowMatchups = matchups
+            var recentMatchupIds = matchups.Where(m => m.Week > latestWeek - window).Select(m => m.Id).ToHashSet();
+            var priorWindowMatchupIds = matchups
                 .Where(m => m.Week > latestWeek - (2 * window) && m.Week <= latestWeek - window)
-                .ToList();
+                .Select(m => m.Id).ToHashSet();
 
-            recentAvg = AveragePointsFor(memberships, recentMatchups, window);
-            priorAvg = AveragePointsFor(memberships, priorWindowMatchups, window);
+            recentAvg = AveragePointsFor(memberships, participants.Where(p => recentMatchupIds.Contains(p.MatchupId)).ToList(), window);
+            priorAvg = AveragePointsFor(memberships, participants.Where(p => priorWindowMatchupIds.Contains(p.MatchupId)).ToList(), window);
         }
 
         return memberships
@@ -74,14 +78,16 @@ public sealed class LeagueIntelService(
             .ToList();
     }
 
-    private static List<TeamStats> BuildTeamStats(IReadOnlyList<LeagueMembership> memberships, IReadOnlyList<Matchup> matchups)
+    private static List<TeamStats> BuildTeamStats(IReadOnlyList<LeagueMembership> memberships, IReadOnlyList<MatchupParticipant> participants)
     {
         var accumulators = memberships.ToDictionary(m => m.Id, m => new TeamStatsAccumulator(m.Id, m.TeamName));
 
-        foreach (var matchup in matchups)
+        // Each matchup has exactly two participant rows (enforced at sync time); anything else
+        // is a defensive no-op rather than a thrown exception, keeping this a pure read path.
+        foreach (var pair in participants.GroupBy(p => p.MatchupId).Select(g => g.ToList()).Where(p => p.Count == 2))
         {
-            Accumulate(accumulators, matchup.HomeLeagueMembershipId, matchup.HomeScore, matchup.AwayScore);
-            Accumulate(accumulators, matchup.AwayLeagueMembershipId, matchup.AwayScore, matchup.HomeScore);
+            Accumulate(accumulators, pair[0].LeagueMembershipId, pair[0].Score, pair[1].Score);
+            Accumulate(accumulators, pair[1].LeagueMembershipId, pair[1].Score, pair[0].Score);
         }
 
         return accumulators.Values.Select(a => a.ToStats()).ToList();
@@ -127,14 +133,14 @@ public sealed class LeagueIntelService(
             .ToList();
     }
 
-    private static Dictionary<Guid, decimal> AveragePointsFor(IReadOnlyList<LeagueMembership> memberships, IReadOnlyList<Matchup> matchups, int weeks)
+    private static Dictionary<Guid, decimal> AveragePointsFor(IReadOnlyList<LeagueMembership> memberships, IReadOnlyList<MatchupParticipant> participants, int weeks)
     {
         var totals = memberships.ToDictionary(m => m.Id, _ => 0m);
 
-        foreach (var matchup in matchups)
+        foreach (var participant in participants)
         {
-            if (totals.ContainsKey(matchup.HomeLeagueMembershipId)) totals[matchup.HomeLeagueMembershipId] += matchup.HomeScore;
-            if (totals.ContainsKey(matchup.AwayLeagueMembershipId)) totals[matchup.AwayLeagueMembershipId] += matchup.AwayScore;
+            if (totals.ContainsKey(participant.LeagueMembershipId))
+                totals[participant.LeagueMembershipId] += participant.Score;
         }
 
         return totals.ToDictionary(kv => kv.Key, kv => weeks == 0 ? 0m : kv.Value / weeks);

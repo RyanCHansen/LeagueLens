@@ -5,19 +5,25 @@ namespace LeagueLens.Domain.Tests;
 public class MatchupTests
 {
     [Fact]
-    public void HomeAndAwayReferenceDifferentLeagueMemberships()
+    public void ParticipantsReferenceDifferentLeagueMembershipsOfTheSameMatchup()
     {
-        var matchup = new Matchup
+        var matchupId = Guid.NewGuid();
+        var first = new MatchupParticipant
         {
             Id = Guid.NewGuid(),
-            LeagueId = Guid.NewGuid(),
-            Week = 1,
-            HomeLeagueMembershipId = Guid.NewGuid(),
-            AwayLeagueMembershipId = Guid.NewGuid(),
-            HomeScore = 105.5m,
-            AwayScore = 98.2m
+            MatchupId = matchupId,
+            LeagueMembershipId = Guid.NewGuid(),
+            Score = 105.5m,
+        };
+        var second = new MatchupParticipant
+        {
+            Id = Guid.NewGuid(),
+            MatchupId = matchupId,
+            LeagueMembershipId = Guid.NewGuid(),
+            Score = 98.2m,
         };
 
-        Assert.NotEqual(matchup.HomeLeagueMembershipId, matchup.AwayLeagueMembershipId);
+        Assert.Equal(first.MatchupId, second.MatchupId);
+        Assert.NotEqual(first.LeagueMembershipId, second.LeagueMembershipId);
     }
 }

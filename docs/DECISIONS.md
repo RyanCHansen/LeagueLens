@@ -127,3 +127,20 @@ Lightweight architecture decision log. One entry per significant decision: what 
 **Alternatives considered:**
 - Keeping `StandingSnapshot` in Phase 2 as originally scoped — rejected: no current read pattern needs a persisted snapshot when the source data (`Matchup`) is already there and current-season volume is small.
 - Removing standings/power-rankings from Phase 2 scope entirely — rejected: not requested; ADR-002's v1 feature scope is unchanged, only how it's computed shifts.
+
+---
+
+## ADR-007: `Matchup` has no Home/Away concept; two-sided results modeled as `MatchupParticipant` rows
+
+**Date:** 2026-08-03
+**Status:** Accepted
+
+**Decision:** `Matchup.HomeLeagueMembershipId`/`AwayLeagueMembershipId`/`HomeScore`/`AwayScore` are removed. `Matchup` is now just `{ Id, LeagueId, Week }`; each side's team and score lives in a new `MatchupParticipant` row (`{ Id, MatchupId, LeagueMembershipId, Score }`), two per matchup, with a unique `(MatchupId, LeagueMembershipId)` index. Neither participant row is structurally privileged — there is no first/second, home/away, or any other ordering baked into the schema. `MatchupMapper` and `MatchupSyncer` were updated accordingly; `LeagueIntelService`'s standings/power-ranking/trend calculations were already symmetric across both sides of a matchup and became simpler as a result (no more duplicated home/away accumulation calls). This was a destructive migration (`RemoveHomeAwayFromMatchup`) with no backfill — acceptable since all `Matchup` data is fully reproducible from a Sleeper re-sync, and the project has no production data yet.
+
+**Why:** Sleeper's own API has no home/away concept — `SleeperMatchupDto` is just `{ RosterId, MatchupId, Points }`, with two rows sharing a `matchup_id` and no side label. The original `HomeLeagueMembershipId`/`AwayLeagueMembershipId` split was invented in `MatchupMapper` (`entries[0]` → home, `entries[1]` → away) purely as an artifact of how the mapping code happened to iterate a grouped list — it never represented anything Sleeper reported or anything LeagueLens's business domain cares about. Fantasy football matchups don't have a home field. Carrying that fabricated distinction into the persisted domain model risked it calcifying into "real" meaning as more features were built on top of it (e.g. a recap API that returns `home`/`away`/`tie`), which is exactly what started happening in Milestone 4b before this refactor. Removing it now, while `Matchup` has exactly one consumer layer (`LeagueIntelService`, `WeekRecapService`) and no production data, is far cheaper than removing it later.
+
+**Consequences:** `WeekRecapService`'s current response shape (`MatchupRecapEntry` with `HomeTeamName`/`AwayTeamName`/`Winner: home|away|tie`) still exists but now derives its home/away framing from an arbitrary, API-layer-only tie-break (team name, then membership ID) applied at read time — it is a display choice, not a domain fact. That response shape is expected to be redesigned in a follow-up milestone (e.g. a symmetric per-participant `Result: Win|Loss|Tie` shape) once revisited; this ADR only covers the domain/persistence/mapping/sync layers.
+
+**Alternatives considered:**
+- Renaming the columns to something neutral but still flat (e.g. `TeamOneMembershipId`/`TeamTwoMembershipId`) — rejected: still bakes an arbitrary two-slot ordering into the schema, just relabeled; doesn't actually remove the fabricated distinction, only its name.
+- Leaving `Matchup` as-is and only changing the API response shape — rejected: doesn't address the actual concern, which is that the domain/persistence layer itself shouldn't encode a distinction the business domain doesn't have.
