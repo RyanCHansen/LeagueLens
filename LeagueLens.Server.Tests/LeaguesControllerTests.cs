@@ -124,22 +124,26 @@ public sealed class LeaguesControllerTests : IAsyncLifetime
         Assert.Equal(2026, result.Season);
         Assert.Equal(1, result.Week);
         var entry = Assert.Single(result.Matchups);
-        Assert.Equal("Alpha", entry.HomeTeamName);
-        Assert.Equal(100, entry.HomeScore);
-        Assert.Equal("Beta", entry.AwayTeamName);
-        Assert.Equal(90, entry.AwayScore);
         Assert.Equal(10, entry.MarginOfVictory);
-        Assert.Equal(MatchupWinner.Home, entry.Winner);
+        var byTeamName = new[] { entry.TeamA, entry.TeamB }.ToDictionary(p => p.TeamName);
+        Assert.Equal(100, byTeamName["Alpha"].Score);
+        Assert.Equal(MatchupOutcome.Win, byTeamName["Alpha"].Outcome);
+        Assert.Equal(90, byTeamName["Beta"].Score);
+        Assert.Equal(MatchupOutcome.Loss, byTeamName["Beta"].Outcome);
     }
 
     [Fact]
-    public async Task GetWeekRecap_SerializesWinner_AsLowercaseString()
+    public async Task GetWeekRecap_SerializesOutcome_AsLowercaseString()
     {
         await SeedLeagueAsync("L7");
 
         var json = await _client.GetStringAsync("/api/leagues/L7/weeks/1/recap");
 
-        Assert.Contains("\"winner\":\"home\"", json);
+        Assert.Contains("\"outcome\":\"win\"", json);
+        Assert.Contains("\"teamA\":", json);
+        Assert.Contains("\"teamB\":", json);
+        Assert.DoesNotContain("home", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("away", json, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

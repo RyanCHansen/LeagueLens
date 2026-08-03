@@ -93,12 +93,11 @@ public class WeekRecapServiceTests : SqliteBackedTestBase
 
         Assert.NotNull(lookup.Recap);
         var entry = Assert.Single(lookup.Recap.Matchups);
-        Assert.Equal(100, entry.HomeScore);
-        Assert.Equal(90, entry.AwayScore);
+        Assert.Equal([100, 90], Both(entry).Select(p => p.Score));
     }
 
     [Fact]
-    public async Task GetWeekRecapAsync_ComputesMarginAndWinner_WhenHomeWins()
+    public async Task GetWeekRecapAsync_AssignsWinAndLoss_PerParticipant()
     {
         var alpha = AddMembership("Alpha", "u1");
         var beta = AddMembership("Beta", "u2");
@@ -107,16 +106,18 @@ public class WeekRecapServiceTests : SqliteBackedTestBase
         var lookup = await GetRecapAsync(week: 1);
 
         var entry = Assert.Single(lookup.Recap!.Matchups);
-        Assert.Equal(alpha.Id, entry.HomeLeagueMembershipId);
-        Assert.Equal("Alpha", entry.HomeTeamName);
-        Assert.Equal(beta.Id, entry.AwayLeagueMembershipId);
-        Assert.Equal("Beta", entry.AwayTeamName);
         Assert.Equal(10, entry.MarginOfVictory);
-        Assert.Equal(MatchupWinner.Home, entry.Winner);
+        var byMembership = Both(entry).ToDictionary(p => p.LeagueMembershipId);
+        Assert.Equal("Alpha", byMembership[alpha.Id].TeamName);
+        Assert.Equal(100, byMembership[alpha.Id].Score);
+        Assert.Equal(MatchupOutcome.Win, byMembership[alpha.Id].Outcome);
+        Assert.Equal("Beta", byMembership[beta.Id].TeamName);
+        Assert.Equal(90, byMembership[beta.Id].Score);
+        Assert.Equal(MatchupOutcome.Loss, byMembership[beta.Id].Outcome);
     }
 
     [Fact]
-    public async Task GetWeekRecapAsync_ComputesMarginAndWinner_WhenAwayWins()
+    public async Task GetWeekRecapAsync_AssignsWinAndLoss_RegardlessOfWhichParticipantScoredHigher()
     {
         var alpha = AddMembership("Alpha", "u1");
         var beta = AddMembership("Beta", "u2");
@@ -126,11 +127,13 @@ public class WeekRecapServiceTests : SqliteBackedTestBase
 
         var entry = Assert.Single(lookup.Recap!.Matchups);
         Assert.Equal(15, entry.MarginOfVictory);
-        Assert.Equal(MatchupWinner.Away, entry.Winner);
+        var byMembership = Both(entry).ToDictionary(p => p.LeagueMembershipId);
+        Assert.Equal(MatchupOutcome.Loss, byMembership[alpha.Id].Outcome);
+        Assert.Equal(MatchupOutcome.Win, byMembership[beta.Id].Outcome);
     }
 
     [Fact]
-    public async Task GetWeekRecapAsync_ComputesTie_WhenScoresAreEqual()
+    public async Task GetWeekRecapAsync_AssignsTie_ToBothParticipants_WhenScoresAreEqual()
     {
         var alpha = AddMembership("Alpha", "u1");
         var beta = AddMembership("Beta", "u2");
@@ -140,21 +143,37 @@ public class WeekRecapServiceTests : SqliteBackedTestBase
 
         var entry = Assert.Single(lookup.Recap!.Matchups);
         Assert.Equal(0, entry.MarginOfVictory);
-        Assert.Equal(MatchupWinner.Tie, entry.Winner);
+        Assert.All(Both(entry), p => Assert.Equal(MatchupOutcome.Tie, p.Outcome));
     }
 
     [Fact]
-    public async Task GetWeekRecapAsync_OrdersMatchupsDeterministically_ByHomeTeamName()
+    public async Task GetWeekRecapAsync_AssignsTeamASlot_ByTeamName()
     {
-        var zeta = AddMembership("Zeta", "u1");
-        var alphaOpp = AddMembership("ZetaOpponent", "u2");
-        var alpha = AddMembership("Alpha", "u3");
-        var alphaOpp2 = AddMembership("AlphaOpponent", "u4");
-        AddMatchup(week: 1, zeta.Id, 100, alphaOpp.Id, 90);
-        AddMatchup(week: 1, alpha.Id, 100, alphaOpp2.Id, 90);
+        var beta = AddMembership("Beta", "u1");
+        var alpha = AddMembership("Alpha", "u2");
+        AddMatchup(week: 1, beta.Id, 90, alpha.Id, 100);
 
         var lookup = await GetRecapAsync(week: 1);
 
-        Assert.Equal(["Alpha", "Zeta"], lookup.Recap!.Matchups.Select(m => m.HomeTeamName));
+        var entry = Assert.Single(lookup.Recap!.Matchups);
+        Assert.Equal("Alpha", entry.TeamA.TeamName);
+        Assert.Equal("Beta", entry.TeamB.TeamName);
     }
+
+    [Fact]
+    public async Task GetWeekRecapAsync_OrdersMatchupsDeterministically_ByTeamASlotTeamName()
+    {
+        var zeta = AddMembership("Zeta", "u1");
+        var zetaOpponent = AddMembership("ZetaOpponent", "u2");
+        var alpha = AddMembership("Alpha", "u3");
+        var alphaOpponent = AddMembership("AlphaOpponent", "u4");
+        AddMatchup(week: 1, zeta.Id, 100, zetaOpponent.Id, 90);
+        AddMatchup(week: 1, alpha.Id, 100, alphaOpponent.Id, 90);
+
+        var lookup = await GetRecapAsync(week: 1);
+
+        Assert.Equal(["Alpha", "Zeta"], lookup.Recap!.Matchups.Select(m => m.TeamA.TeamName));
+    }
+
+    private static IEnumerable<MatchupParticipantResult> Both(MatchupRecapEntry entry) => [entry.TeamA, entry.TeamB];
 }
