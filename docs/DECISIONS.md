@@ -128,6 +128,8 @@ Lightweight architecture decision log. One entry per significant decision: what 
 - Keeping `StandingSnapshot` in Phase 2 as originally scoped — rejected: no current read pattern needs a persisted snapshot when the source data (`Matchup`) is already there and current-season volume is small.
 - Removing standings/power-rankings from Phase 2 scope entirely — rejected: not requested; ADR-002's v1 feature scope is unchanged, only how it's computed shifts.
 
+**Update (2026-08-04):** Superseded in part by ADR-009 — standings/power-rankings/trends themselves (not just `StandingSnapshot`) moved from Phase 2 to Phase 4, and the code built against this ADR's "computed at query time" design was removed rather than carried forward. The query-time-vs-snapshot question this ADR answered is moot until Phase 4 restarts this work, at which point it should be revisited fresh rather than assumed.
+
 ---
 
 ## ADR-007: `Matchup` has no Home/Away concept; two-sided results modeled as `MatchupParticipant` rows
@@ -165,3 +167,25 @@ Lightweight architecture decision log. One entry per significant decision: what 
 **Alternatives considered:**
 - Extending `SleeperSyncService` to also persist the current week's pairing — rejected for this milestone: reopens the exact partial/live-score risk the sync layer was deliberately built to avoid, and turns a read-only API feature into a persistence/migration change for no immediate benefit.
 - Enriching the preview with standings/power-ranking context in the same milestone — rejected for now: conflates "does the live-read pattern work" with "what should a rich preview contain," better validated separately. Revisit once this pattern is proven.
+
+**Update (2026-08-04):** Per ADR-009, `IWeekPreviewService`/`WeekPreviewService` and its DTOs were relocated from `LeagueLens.Application/LeagueIntel/` to `LeagueLens.Application/Sleeper/Preview/`, and registered via `AddSleeperSync()` instead of the now-removed `AddLeagueIntel()`. This is a namespace/registration move only — the live-read pattern and rationale this ADR documents are unchanged. The relocation reflects that this service performs no analytics (no scores, no derived stats, no predictions), so it belongs with core Sleeper plumbing rather than with the analytics code that moved to Phase 4.
+
+---
+
+## ADR-009: Roadmap restructured around Sleeper Platform before Analytics; League Intel analytics code removed
+
+**Date:** 2026-08-04
+**Status:** Accepted
+
+**Decision:**
+- Phase 2 is retitled from "League Intel" to "Sleeper Platform." Its scope changes from computing analytics (standings, power rankings, trends, matchup recaps/highlights) over Sleeper data to shipping a polished, usable application over Sleeper data: importing/persisting leagues, rosters, players, and matchups; exposing clean REST read endpoints for them; and building the corresponding frontend (league/roster/player/team/matchup pages, player search, draft/transactions if Sleeper supports them).
+- Everything analytics-flavored — standings, power rankings, in-season trends, matchup recaps, week highlights — moves from Phase 2 to the new Phase 4 (Analytics). Phase 3 (Unified Player Profiles) is unchanged and remains the flagship feature, unchanged in position or substance.
+- The already-built analytics code for this (Milestones 3b, 4a–4c: `LeagueIntelService`, `IPowerRankingCalculator`/`BlendedPowerRankingCalculator`, `LeagueIntelOptions`, `WeekRecapService`, `WeekHighlightsService`, their DTOs, and the corresponding `LeaguesController` endpoints/tests) is **removed outright**, not relocated-in-place or feature-flagged off. It will be rebuilt from scratch when Phase 4 starts.
+- `WeekPreviewService` (Milestone 4d, the `GET /preview` endpoint) is the one exception: it's kept, relocated from `LeagueLens.Application/LeagueIntel/` into `LeagueLens.Application/Sleeper/Preview/`, and registered via `AddSleeperSync()` instead of the deleted `AddLeagueIntel()` (see ADR-008 update). It returns only concrete Sleeper data (live current-week team pairings, no scores or derived stats), so it fits Phase 2's "matchup pages" scope rather than analytics.
+
+**Why:** The product's actual differentiator was always the unified, multi-source Player Profile (ADR-003), not league analytics — but the original roadmap sequenced a full analytics engine on Sleeper-only data as Phase 2, ahead of any player browsing, search, or profile UI. That ordering reflected what was easiest to build first from Sleeper's API, not the product's stated value proposition. Removing the already-built analytics code, rather than preserving it in a "deferred" state, was deliberate: the eventual analytics approach (which stats, what formulas, what the frontend needs) may look different by the time Phase 4 actually starts, once real Player Profile and Sleeper Platform UI exist to inform it — so there's little value preserving code shaped by requirements that may no longer hold, and rebuilding fresh against then-current requirements is cheaper than maintaining or migrating code that isn't being exercised in the meantime.
+
+**Alternatives considered:**
+- Leaving the analytics code in place and just redocumenting it as "Phase 4 work, built ahead of schedule" — rejected: preserving now-possibly-wrong-shaped code has no clear payoff if the analytics approach changes before Phase 4 starts, and a clean Phase 2 codebase is worth more than salvaging tested-but-premature code.
+- Physically relocating the analytics code into a clearly-labeled "deferred" folder instead of deleting it — rejected for the same reason; still carries code that may not match Phase 4's eventual shape.
+- Also removing `WeekPreviewService`/`/preview` along with the rest of `LeagueIntel/` — rejected: it performs no analytics (no scores, no derived stats, no predictions), just pairs teams from live Sleeper data, so it fits "matchup pages" as scoped for Phase 2's Sleeper Platform.

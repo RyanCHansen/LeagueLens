@@ -1,4 +1,4 @@
-namespace LeagueLens.Application.LeagueIntel;
+namespace LeagueLens.Application.Sleeper.Preview;
 
 /// <summary>
 /// Fetches the current week's matchup pairings live from Sleeper -- <c>SleeperSyncService</c>

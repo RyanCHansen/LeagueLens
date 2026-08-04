@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using LeagueLens.Application.LeagueIntel;
 using LeagueLens.Application.Sleeper.Client.Dtos;
+using LeagueLens.Application.Sleeper.Preview;
 using LeagueLens.Domain.Entities;
 using LeagueLens.Server.Tests.TestSupport;
 using Microsoft.AspNetCore.Mvc;
@@ -28,84 +28,20 @@ public sealed class LeaguesControllerTests : IAsyncLifetime
     private async Task SeedLeagueAsync(string sleeperLeagueId)
     {
         var leagueId = Guid.NewGuid();
-        var alphaId = Guid.NewGuid();
-        var betaId = Guid.NewGuid();
 
         await _factory.SeedAsync(db =>
         {
-            var matchupId = Guid.NewGuid();
             db.Leagues.Add(new League { Id = leagueId, SleeperLeagueId = sleeperLeagueId, Name = "Test League", Season = 2026 });
-            db.LeagueMemberships.Add(new LeagueMembership { Id = alphaId, LeagueId = leagueId, SleeperUserId = "u1", TeamName = "Alpha" });
-            db.LeagueMemberships.Add(new LeagueMembership { Id = betaId, LeagueId = leagueId, SleeperUserId = "u2", TeamName = "Beta" });
-            db.Matchups.Add(new Matchup { Id = matchupId, LeagueId = leagueId, Week = 1 });
-            db.MatchupParticipants.Add(new MatchupParticipant { Id = Guid.NewGuid(), MatchupId = matchupId, LeagueMembershipId = alphaId, Score = 100 });
-            db.MatchupParticipants.Add(new MatchupParticipant { Id = Guid.NewGuid(), MatchupId = matchupId, LeagueMembershipId = betaId, Score = 90 });
+            db.LeagueMemberships.Add(new LeagueMembership { Id = Guid.NewGuid(), LeagueId = leagueId, SleeperUserId = "u1", TeamName = "Alpha" });
+            db.LeagueMemberships.Add(new LeagueMembership { Id = Guid.NewGuid(), LeagueId = leagueId, SleeperUserId = "u2", TeamName = "Beta" });
             return Task.CompletedTask;
         });
     }
 
     [Fact]
-    public async Task GetStandings_ReturnsStandings_WhenLeagueExists()
+    public async Task GetWeekPreview_ReturnsProblemDetails404_WhenLeagueUnknown()
     {
-        await SeedLeagueAsync("L1");
-
-        var result = await _client.GetFromJsonAsync<StandingsResult>("/api/leagues/L1/standings");
-
-        Assert.NotNull(result);
-        Assert.Equal("L1", result.SleeperLeagueId);
-        Assert.Equal(2026, result.Season);
-        Assert.Equal(1, result.ThroughWeek);
-        Assert.Equal(2, result.Standings.Count);
-        Assert.Equal("Alpha", result.Standings[0].TeamName);
-    }
-
-    [Fact]
-    public async Task GetPowerRankings_ReturnsPowerRankings_WhenLeagueExists()
-    {
-        await SeedLeagueAsync("L2");
-
-        var result = await _client.GetFromJsonAsync<PowerRankingsResult>("/api/leagues/L2/power-rankings");
-
-        Assert.NotNull(result);
-        Assert.Equal(2, result.PowerRankings.Count);
-    }
-
-    [Fact]
-    public async Task GetTrends_ReturnsTrends_WhenLeagueExists()
-    {
-        await SeedLeagueAsync("L3");
-
-        var result = await _client.GetFromJsonAsync<TrendsResult>("/api/leagues/L3/trends");
-
-        Assert.NotNull(result);
-        Assert.Equal(2, result.Trends.Count);
-        Assert.All(result.Trends, t => Assert.Null(t.StandingMovement)); // only 1 week played
-    }
-
-    [Fact]
-    public async Task GetSummary_ReturnsAllThreeSections_WhenLeagueExists()
-    {
-        await SeedLeagueAsync("L4");
-
-        var result = await _client.GetFromJsonAsync<LeagueIntelSummary>("/api/leagues/L4/summary");
-
-        Assert.NotNull(result);
-        Assert.Equal(2, result.Standings.Count);
-        Assert.Equal(2, result.PowerRankings.Count);
-        Assert.Equal(2, result.Trends.Count);
-    }
-
-    [Theory]
-    [InlineData("/api/leagues/unknown/standings")]
-    [InlineData("/api/leagues/unknown/power-rankings")]
-    [InlineData("/api/leagues/unknown/trends")]
-    [InlineData("/api/leagues/unknown/summary")]
-    [InlineData("/api/leagues/unknown/weeks/1/recap")]
-    [InlineData("/api/leagues/unknown/weeks/1/highlights")]
-    [InlineData("/api/leagues/unknown/preview")]
-    public async Task Endpoints_ReturnProblemDetails404_WhenLeagueUnknown(string requestUri)
-    {
-        var response = await _client.GetAsync(requestUri);
+        var response = await _client.GetAsync("/api/leagues/unknown/preview");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
@@ -113,88 +49,6 @@ public sealed class LeaguesControllerTests : IAsyncLifetime
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         Assert.NotNull(problem);
         Assert.Equal("League not found", problem.Title);
-    }
-
-    [Fact]
-    public async Task GetWeekRecap_ReturnsRecap_WhenWeekExists()
-    {
-        await SeedLeagueAsync("L5");
-
-        var result = await _client.GetFromJsonAsync<WeekRecapResult>("/api/leagues/L5/weeks/1/recap");
-
-        Assert.NotNull(result);
-        Assert.Equal("L5", result.SleeperLeagueId);
-        Assert.Equal(2026, result.Season);
-        Assert.Equal(1, result.Week);
-        var entry = Assert.Single(result.Matchups);
-        Assert.Equal(10, entry.MarginOfVictory);
-        Assert.Equal("Alpha", entry.TeamA.TeamName);
-        Assert.Equal(100, entry.TeamA.Score);
-        Assert.Equal(MatchupOutcome.Win, entry.TeamA.Outcome);
-        Assert.Equal("Beta", entry.TeamB.TeamName);
-        Assert.Equal(90, entry.TeamB.Score);
-        Assert.Equal(MatchupOutcome.Loss, entry.TeamB.Outcome);
-    }
-
-    [Fact]
-    public async Task GetWeekRecap_SerializesOutcome_AsLowercaseString()
-    {
-        await SeedLeagueAsync("L7");
-
-        var json = await _client.GetStringAsync("/api/leagues/L7/weeks/1/recap");
-
-        Assert.Contains("\"outcome\":\"win\"", json);
-        Assert.Contains("\"teamA\":", json);
-        Assert.Contains("\"teamB\":", json);
-        Assert.DoesNotContain("home", json, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("away", json, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task GetWeekRecap_ReturnsProblemDetails404_WhenWeekHasNoMatchupData()
-    {
-        await SeedLeagueAsync("L6");
-
-        var response = await _client.GetAsync("/api/leagues/L6/weeks/2/recap");
-
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
-
-        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
-        Assert.NotNull(problem);
-        Assert.Equal("Week not found", problem.Title);
-    }
-
-    [Fact]
-    public async Task GetWeekHighlights_ReturnsHighlights_WhenWeekExists()
-    {
-        await SeedLeagueAsync("L8");
-
-        var result = await _client.GetFromJsonAsync<WeekHighlightsResult>("/api/leagues/L8/weeks/1/highlights");
-
-        Assert.NotNull(result);
-        Assert.Equal("L8", result.SleeperLeagueId);
-        Assert.Equal(2026, result.Season);
-        Assert.Equal(1, result.Week);
-        Assert.Equal("Highest Scoring Team", result.HighestScoringTeam.Label);
-        Assert.Equal("Closest Game", result.ClosestGame.Label);
-        Assert.Equal("Biggest Blowout", result.BiggestBlowout.Label);
-        Assert.Equal(10, result.ClosestGame.Matchup.MarginOfVictory);
-    }
-
-    [Fact]
-    public async Task GetWeekHighlights_ReturnsProblemDetails404_WhenWeekHasNoMatchupData()
-    {
-        await SeedLeagueAsync("L9");
-
-        var response = await _client.GetAsync("/api/leagues/L9/weeks/2/highlights");
-
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
-
-        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
-        Assert.NotNull(problem);
-        Assert.Equal("Week not found", problem.Title);
     }
 
     [Fact]

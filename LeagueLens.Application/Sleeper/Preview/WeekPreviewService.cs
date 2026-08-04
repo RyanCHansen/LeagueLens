@@ -3,7 +3,7 @@ using LeagueLens.Application.Sleeper.Client.Dtos;
 using LeagueLens.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace LeagueLens.Application.LeagueIntel;
+namespace LeagueLens.Application.Sleeper.Preview;
 
 /// <inheritdoc cref="IWeekPreviewService"/>
 public sealed class WeekPreviewService(LeagueLensDbContext db, ISleeperApiClient client) : IWeekPreviewService

@@ -1,9 +1,9 @@
-using LeagueLens.Application.LeagueIntel;
 using LeagueLens.Application.Sleeper.Client.Dtos;
+using LeagueLens.Application.Sleeper.Preview;
 using LeagueLens.Application.Tests.TestSupport;
 using LeagueLens.Domain.Entities;
 
-namespace LeagueLens.Application.Tests.LeagueIntel;
+namespace LeagueLens.Application.Tests.Sleeper.Preview;
 
 public class WeekPreviewServiceTests : SqliteBackedTestBase
 {
