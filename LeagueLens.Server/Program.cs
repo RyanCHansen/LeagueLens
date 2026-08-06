@@ -15,7 +15,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddDbContext<LeagueLensDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("LeagueLensDb")));
 
-builder.Services.AddSleeperSync();
+builder.Services.AddSleeperSync(builder.Configuration);
 
 var app = builder.Build();
 

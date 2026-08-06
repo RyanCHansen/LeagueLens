@@ -5,6 +5,7 @@ using LeagueLens.Domain.Entities;
 using LeagueLens.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace LeagueLens.Application.Tests.Sleeper.Sync;
 
@@ -26,6 +27,8 @@ public class SleeperSyncServiceTests : SqliteBackedTestBase
             new RosterSyncer(Db),
             new MatchupSyncer(Db),
             new PlayerCatalogSyncer(Db, NullLogger<PlayerCatalogSyncer>.Instance),
+            TimeProvider.System,
+            Options.Create(new SleeperSyncOptions { PlayerCatalogCooldownMinutes = 60, LeagueSyncCooldownMinutes = 10 }),
             NullLogger<SleeperSyncService>.Instance);
 
         _client.League = new SleeperLeagueDto { LeagueId = "L1", Name = "Test League", Season = "2026", RosterPositions = RosterPositions };
@@ -119,5 +122,102 @@ public class SleeperSyncServiceTests : SqliteBackedTestBase
         Assert.Equal(1, result.Players.Added);
         Assert.Equal(1, result.Players.Skipped);
         Assert.Equal(7, await Db.Players.CountAsync()); // 6 seeded + 1 newly added
+    }
+
+    private void SeedSyncStatus(SyncKind syncType, string sleeperLeagueId, DateTimeOffset lastSuccessfulSyncAt)
+    {
+        Db.SyncStatuses.Add(new SyncStatus
+        {
+            Id = Guid.NewGuid(),
+            Provider = SyncProvider.Sleeper,
+            SyncType = syncType,
+            SleeperLeagueId = sleeperLeagueId,
+            LastSuccessfulSyncAt = lastSuccessfulSyncAt,
+        });
+        Db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task SyncLeagueWithCatalogRefreshAsync_RunsBothStepsOnFirstEverCall()
+    {
+        var result = await _service.SyncLeagueWithCatalogRefreshAsync("L1", CancellationToken.None);
+
+        Assert.True(result.PlayerCatalog.Ran);
+        Assert.NotNull(result.PlayerCatalog.Result);
+        Assert.True(result.League.Ran);
+        Assert.NotNull(result.League.Result);
+        Assert.Equal(1, result.League.Result!.League.Added);
+
+        Assert.Equal(2, await Db.SyncStatuses.CountAsync());
+    }
+
+    [Fact]
+    public async Task SyncLeagueWithCatalogRefreshAsync_SkipsCatalogWithinCooldown_ButStillSyncsLeague()
+    {
+        var recentCatalogSync = DateTimeOffset.UtcNow.AddMinutes(-5); // cooldown is 60 minutes
+        SeedSyncStatus(SyncKind.PlayerCatalog, "", recentCatalogSync);
+
+        var result = await _service.SyncLeagueWithCatalogRefreshAsync("L1", CancellationToken.None);
+
+        Assert.False(result.PlayerCatalog.Ran);
+        Assert.Null(result.PlayerCatalog.Result);
+        Assert.Equal(recentCatalogSync, result.PlayerCatalog.LastSuccessfulSyncAt);
+        Assert.Equal(recentCatalogSync.AddMinutes(60), result.PlayerCatalog.NextSyncAvailableAt);
+
+        Assert.True(result.League.Ran);
+        Assert.NotNull(result.League.Result);
+    }
+
+    [Fact]
+    public async Task SyncLeagueWithCatalogRefreshAsync_ResyncsCatalogOnceCooldownElapsed()
+    {
+        var staleCatalogSync = DateTimeOffset.UtcNow.AddMinutes(-70); // cooldown is 60 minutes
+        SeedSyncStatus(SyncKind.PlayerCatalog, "", staleCatalogSync);
+
+        var result = await _service.SyncLeagueWithCatalogRefreshAsync("L1", CancellationToken.None);
+
+        Assert.True(result.PlayerCatalog.Ran);
+        Assert.NotNull(result.PlayerCatalog.Result);
+    }
+
+    [Fact]
+    public async Task SyncLeagueWithCatalogRefreshAsync_SkipsLeagueWithinCooldown_ButStillEvaluatesCatalog()
+    {
+        var recentLeagueSync = DateTimeOffset.UtcNow.AddMinutes(-2); // cooldown is 10 minutes
+        SeedSyncStatus(SyncKind.League, "L1", recentLeagueSync);
+
+        var result = await _service.SyncLeagueWithCatalogRefreshAsync("L1", CancellationToken.None);
+
+        Assert.True(result.PlayerCatalog.Ran); // no prior catalog sync recorded
+        Assert.False(result.League.Ran);
+        Assert.Null(result.League.Result);
+        Assert.Equal(recentLeagueSync, result.League.LastSuccessfulSyncAt);
+        Assert.Equal(recentLeagueSync.AddMinutes(10), result.League.NextSyncAvailableAt);
+
+        // A skipped league step must not touch league data.
+        Assert.Equal(0, await Db.Leagues.CountAsync());
+    }
+
+    [Fact]
+    public async Task SyncLeagueWithCatalogRefreshAsync_LeagueCooldownIsScopedPerLeague()
+    {
+        var recentLeagueSync = DateTimeOffset.UtcNow.AddMinutes(-2);
+        SeedSyncStatus(SyncKind.League, "SomeOtherLeague", recentLeagueSync);
+
+        var result = await _service.SyncLeagueWithCatalogRefreshAsync("L1", CancellationToken.None);
+
+        Assert.True(result.League.Ran);
+    }
+
+    [Fact]
+    public async Task SyncLeagueWithCatalogRefreshAsync_PropagatesCatalogFailure_WithoutAttemptingLeagueSync()
+    {
+        _client.ThrowOnCall = new HttpRequestException("simulated Sleeper outage");
+
+        await Assert.ThrowsAsync<HttpRequestException>(
+            () => _service.SyncLeagueWithCatalogRefreshAsync("L1", CancellationToken.None));
+
+        Assert.Equal(0, await Db.Leagues.CountAsync());
+        Assert.Empty(await Db.SyncStatuses.ToListAsync());
     }
 }

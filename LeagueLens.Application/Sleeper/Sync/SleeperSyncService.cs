@@ -1,8 +1,12 @@
 using System.Diagnostics;
 using LeagueLens.Application.Sleeper.Client;
 using LeagueLens.Application.Sleeper.Client.Dtos;
+using LeagueLens.Domain.Entities;
+using LeagueLens.Domain.Enums;
 using LeagueLens.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace LeagueLens.Application.Sleeper.Sync;
 
@@ -16,8 +20,92 @@ public sealed class SleeperSyncService(
     RosterSyncer rosterSyncer,
     MatchupSyncer matchupSyncer,
     PlayerCatalogSyncer playerCatalogSyncer,
+    TimeProvider timeProvider,
+    IOptions<SleeperSyncOptions> options,
     ILogger<SleeperSyncService> logger)
 {
+    private const SyncProvider SleeperProvider = SyncProvider.Sleeper;
+
+    // No per-league scope for the player catalog -- a non-null sentinel, not null, so the
+    // (Provider, SyncType, SleeperLeagueId) unique index actually enforces one row (see
+    // SyncStatusConfiguration for why null would defeat that).
+    private const string NoLeagueScope = "";
+
+    /// <summary>
+    /// The single user-facing sync action: refreshes the player catalog first if its cooldown
+    /// has elapsed, then syncs the requested league if its own (shorter, per-league) cooldown
+    /// has elapsed. Each step is independently cooldown-gated and reported back so a caller can
+    /// show "last synced"/"next available" even when a step was skipped.
+    /// </summary>
+    /// <remarks>
+    /// If the catalog step actually runs and fails (Sleeper unreachable), that exception
+    /// propagates and the league step never runs -- a league synced against a stale/incomplete
+    /// catalog would produce confusing partial roster data, so an all-or-nothing catalog step is
+    /// deliberate here, not an oversight.
+    /// </remarks>
+    public async Task<LeagueSyncOrchestrationResult> SyncLeagueWithCatalogRefreshAsync(
+        string sleeperLeagueId, CancellationToken ct)
+    {
+        var catalogOutcome = await SyncIfDueAsync(
+            SyncKind.PlayerCatalog,
+            NoLeagueScope,
+            TimeSpan.FromMinutes(options.Value.PlayerCatalogCooldownMinutes),
+            () => SyncPlayerCatalogAsync(ct),
+            ct);
+
+        var leagueOutcome = await SyncIfDueAsync(
+            SyncKind.League,
+            sleeperLeagueId,
+            TimeSpan.FromMinutes(options.Value.LeagueSyncCooldownMinutes),
+            () => SyncLeagueAsync(sleeperLeagueId, ct),
+            ct);
+
+        return new LeagueSyncOrchestrationResult(catalogOutcome, leagueOutcome);
+    }
+
+    private async Task<SyncStepOutcome<TResult>> SyncIfDueAsync<TResult>(
+        SyncKind syncType,
+        string sleeperLeagueId,
+        TimeSpan cooldown,
+        Func<Task<TResult>> runSyncAsync,
+        CancellationToken ct)
+    {
+        var status = await db.SyncStatuses.SingleOrDefaultAsync(
+            s => s.Provider == SleeperProvider && s.SyncType == syncType && s.SleeperLeagueId == sleeperLeagueId,
+            ct);
+
+        var now = timeProvider.GetUtcNow();
+        if (status is not null)
+        {
+            var nextAvailableAt = status.LastSuccessfulSyncAt + cooldown;
+            if (now < nextAvailableAt)
+                return new SyncStepOutcome<TResult>(false, status.LastSuccessfulSyncAt, nextAvailableAt, default);
+        }
+
+        var result = await runSyncAsync();
+
+        var syncedAt = timeProvider.GetUtcNow();
+        if (status is null)
+        {
+            status = new SyncStatus
+            {
+                Id = Guid.NewGuid(),
+                Provider = SleeperProvider,
+                SyncType = syncType,
+                SleeperLeagueId = sleeperLeagueId,
+                LastSuccessfulSyncAt = syncedAt,
+            };
+            db.SyncStatuses.Add(status);
+        }
+        else
+        {
+            status.LastSuccessfulSyncAt = syncedAt;
+        }
+        await db.SaveChangesAsync(ct);
+
+        return new SyncStepOutcome<TResult>(true, syncedAt, syncedAt + cooldown, result);
+    }
+
     public async Task<PlayerCatalogSyncResult> SyncPlayerCatalogAsync(CancellationToken ct)
     {
         var total = Stopwatch.StartNew();

@@ -16,6 +16,7 @@ public class LeagueLensDbContext(DbContextOptions<LeagueLensDbContext> options)
     public DbSet<Roster> Rosters => Set<Roster>();
     public DbSet<Matchup> Matchups => Set<Matchup>();
     public DbSet<MatchupParticipant> MatchupParticipants => Set<MatchupParticipant>();
+    public DbSet<SyncStatus> SyncStatuses => Set<SyncStatus>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
