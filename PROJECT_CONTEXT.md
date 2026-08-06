@@ -2,9 +2,9 @@
 
 *Current state only. For durable guidance see `CLAUDE.md`; for decision history see `docs/DECISIONS.md`.*
 
-**What it is:** LeagueLens — a fantasy football statistics/analytics web app, and a portfolio piece for demonstrating full-stack engineering skill. Started as a side project to explore fantasy football data while leveling up cloud/full-stack skills. Its core value proposition is the **unified Player Profile** — one canonical view per player, compiling data pooled from every source (Sleeper, KeepTradeCut, FantasyCalc, FantasyPros, and more over time) into clearly sectioned, provenance-labeled data, reachable from any player reference anywhere in the app.
+**What it is:** LeagueLens — a companion app for Sleeper dynasty fantasy football leagues, and a portfolio piece for demonstrating full-stack engineering skill. Started as a side project to explore fantasy football data while leveling up cloud/full-stack skills. Sleeper remains the system of record for leagues, rosters, matchups, and transactions (ADR-010) — LeagueLens's core value proposition is the **unified Player Profile** — one canonical view per player, compiling data pooled from every source (Sleeper, KeepTradeCut, FantasyCalc, FantasyPros, and more over time) into clearly sectioned, provenance-labeled data, reachable from any player reference anywhere in the app.
 
-**Stage:** Foundation and architecture planning are complete (see `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`). Phase 2 (Sleeper Platform — retitled and rescoped from "League Intel" per ADR-009) is underway:
+**Stage:** Foundation and architecture planning are complete (see `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`). Phase 2 (Sleeper Experience — retitled and rescoped from "League Intel" per ADR-009, renamed from "Sleeper Platform" per ADR-010) is underway:
 
 - **Milestone 1 (Domain — `LeagueLens.Domain`)** — done. `UserProfile`, `League`, `LeagueMembership`, `Roster`, `Matchup`, `MatchupParticipant`, `Player` as persistence-ignorant POCOs.
 - **Milestone 1.5 (test project — `LeagueLens.Domain.Tests`)** — done.
@@ -20,4 +20,4 @@
 - The renamed scaffold's client/server wiring (SPA proxy, single-deployable static file serving) is being replaced per the planned architecture — API and SPA will deploy separately. "Don't treat the current `Program.cs`/`proxy.conf.js` setup as the target design."
 - **Frontend:** a Figma design exists but hasn't been shared into the repo yet. No frontend implementation work starts until it is.
 
-**Next:** the remaining Phase 2 (Sleeper Platform) gap is a sync-trigger endpoint and raw read endpoints for leagues/rosters/players/matchups — see `docs/ROADMAP.md` for full phase detail.
+**Next:** the remaining Phase 2 (Sleeper Experience) gap is a sync-trigger endpoint and raw read endpoints for leagues/rosters/players/matchups — see `docs/ROADMAP.md` for full phase detail.

@@ -189,3 +189,32 @@ Lightweight architecture decision log. One entry per significant decision: what 
 - Leaving the analytics code in place and just redocumenting it as "Phase 4 work, built ahead of schedule" — rejected: preserving now-possibly-wrong-shaped code has no clear payoff if the analytics approach changes before Phase 4 starts, and a clean Phase 2 codebase is worth more than salvaging tested-but-premature code.
 - Physically relocating the analytics code into a clearly-labeled "deferred" folder instead of deleting it — rejected for the same reason; still carries code that may not match Phase 4's eventual shape.
 - Also removing `WeekPreviewService`/`/preview` along with the rest of `LeagueIntel/` — rejected: it performs no analytics (no scores, no derived stats, no predictions), just pairs teams from live Sleeper data, so it fits "matchup pages" as scoped for Phase 2's Sleeper Platform.
+
+**Update (2026-08-06):** Per ADR-010, Phase 2 is retitled again, from "Sleeper Platform" to "Sleeper Experience" — the underlying scope this ADR defines (a polished, read-only application over Sleeper data, no analytics) is unchanged; only the name changes, to avoid "Platform" implying LeagueLens is building a competing base for league data rather than a companion view of it.
+
+---
+
+## ADR-010: LeagueLens is a companion to Sleeper, not a replacement for it
+
+**Date:** 2026-08-06
+**Status:** Accepted
+
+**Decision:** LeagueLens is explicitly scoped as a companion to Sleeper — a permanent product boundary, not a temporary limitation. Sleeper is the system of record: league metadata, teams, rosters, matchups, and transactions all originate from and are managed in Sleeper. LeagueLens enriches that data; it does not own, manage, or replicate Sleeper's league-management functionality. This holds even if Sleeper's API were to gain write access in the future — the boundary is intentional, not a byproduct of what the API currently allows.
+
+LeagueLens's job is (a) a read-only view of a user's Sleeper team/league and (b) the compiled, multi-source Player Profile (ADR-003) reachable by clicking any player anywhere in the app — bringing together rankings, trade values, news, and analysis that today are scattered across multiple separate sites into one place.
+
+**Guiding product vision:** Success is measured by how quickly a user can go from seeing a player in their Sleeper league to understanding that player's value through aggregated information from multiple trusted sources. Future feature decisions should be weighed against this — does it shorten that path, or does it drift LeagueLens toward reimplementing something Sleeper already does?
+
+**Why:**
+1. **Product focus (primary reason):** ADR-009 already established the Player Profile, not league mechanics, as the product's actual differentiator. Sleeper already handles league management; LeagueLens's value is aggregating the player research that's normally spread across multiple separate services into one unified view. Building league-management features would dilute that focus rather than add to it.
+2. **Sleeper as system of record:** Treating Sleeper as the sole authoritative source for league/roster/transaction data — rather than something LeagueLens duplicates or takes over — keeps the data model honest: LeagueLens syncs and enriches, it never forks a second, divergent copy of league state.
+3. **Supporting context, not the rationale:** Sleeper's public API (`docs.sleeper.com`) is currently read-only, which reinforces this direction today, but that's incidental — the boundary is a deliberate product choice that would hold even if Sleeper exposed write endpoints tomorrow.
+
+This positioning had never been stated anywhere in the docs before this ADR — an audit of `README.md`, `PROJECT_CONTEXT.md`, and `docs/ROADMAP.md` found no contradiction, just silence, plus a couple of ambiguous phrases (e.g. ROADMAP's former "a polished, usable fantasy football application") that could be misread as LeagueLens replacing Sleeper's own app rather than complementing it.
+
+**Alternatives considered:**
+- Building lineup-setting/waiver-processing UI in LeagueLens — rejected: off-product-focus, and would mean LeagueLens managing data it doesn't own.
+- Framing this as an API limitation rather than a product decision — rejected: that would leave the boundary implicitly reversible if Sleeper ever added write access, when the intent is for LeagueLens to stay a companion regardless.
+- Leaving the positioning unstated (status quo) — rejected: the ambiguity in existing docs was actively capable of misleading a reader about what LeagueLens does.
+
+**Related rename:** Phase 2 is retitled from "Sleeper Platform" (per ADR-009) to **"Sleeper Experience"** — "Platform" reads as LeagueLens building its own competing base for league data, which contradicts the companion positioning this ADR establishes; "Experience" better describes a polished, read-only view layered on Sleeper's own data. See `docs/ROADMAP.md`.

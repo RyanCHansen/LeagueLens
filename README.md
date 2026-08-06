@@ -1,6 +1,6 @@
 # LeagueLens
 
-A fantasy football statistics and analytics web app — an ASP.NET Core + Angular portfolio project.
+A companion application for Sleeper dynasty fantasy football leagues. Users manage their league in Sleeper; LeagueLens is where they explore unified player profiles that combine rankings, trade values, news, and analysis from multiple sources. An ASP.NET Core + Angular portfolio project.
 
 ## Stack
 

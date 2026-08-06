@@ -2,7 +2,7 @@
 
 - **Phase 1 — Foundation** ✅ Done. Repo renamed to LeagueLens, demo scaffold removed, baseline docs in place, architecture planning complete (see `docs/ARCHITECTURE.md` and `docs/DECISIONS.md`, ADR-001 through ADR-004).
 
-- **Phase 2 — Sleeper Platform** ⏳ In progress. A polished, usable fantasy football application powered entirely by Sleeper data — no analytics yet (see Phase 4; retitled and rescoped from "League Intel" per ADR-009). Built as a complete vertical slice, layer by layer:
+- **Phase 2 — Sleeper Experience** ⏳ In progress. A polished, read-only view of your Sleeper leagues, rosters, and matchups — no lineup-setting or waiver management (Sleeper stays the system of record for that, per ADR-010), no analytics yet (see Phase 4; retitled and rescoped from "League Intel" per ADR-009, renamed from "Sleeper Platform" per ADR-010). Built as a complete vertical slice, layer by layer:
   1. **Domain** ✅ Done. `UserProfile`, `League`, `LeagueMembership`, `Roster`, `Matchup`, `MatchupParticipant`, and `Player` (lightweight identity, bootstrapped from Sleeper's player list so `Roster` has something to reference) as persistence-ignorant POCOs. `UserProfile` relates 1:1 to the ASP.NET Core Identity user by FK, never by inheritance (ADR-005). `Matchup` carries no home/away concept — each side is a `MatchupParticipant` row (ADR-007).
   1.5. **Testing infrastructure** ✅ Done. `LeagueLens.Domain.Tests` scaffolded with initial tests against the Milestone 1 domain entities, sequenced right after Domain and before Persistence (ADR-005).
   2. **Persistence** ✅ Done. EF Core `DbContext` + Fluent API configurations + migrations for the above, including Identity's own tables (configured as an infrastructure concern, not domain). Validated locally against SQL Server Express directly (not containerized yet — ADR-005).
@@ -22,7 +22,7 @@
   6. **Frontend** — universal click-to-detail UI, sectioned by source, from any player reference on any screen (post-Figma).
 
 - **Phase 4 — Analytics**. Not started, deferred until Phase 3 is real. New home (per ADR-009) for everything analytics-flavored that was originally scoped into Phase 2:
-  - Standings, power rankings, in-season trends, matchup recaps, and week highlights — rebuilt fresh against whatever the Player Profile and Sleeper Platform look like by then, not resurrected from the code removed per ADR-009.
+  - Standings, power rankings, in-season trends, matchup recaps, and week highlights — rebuilt fresh against whatever the Player Profile and Sleeper Experience look like by then, not resurrected from the code removed per ADR-009.
   - Multi-player comparison tool, built directly on `PlayerProfile` — no new aggregation logic needed.
   - True multi-season history, including a persisted `StandingSnapshot` entity (see ADR-006) once recomputing standings from raw matchup history on every read no longer scales.
 
