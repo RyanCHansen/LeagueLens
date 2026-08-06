@@ -218,3 +218,27 @@ This positioning had never been stated anywhere in the docs before this ADR — 
 - Leaving the positioning unstated (status quo) — rejected: the ambiguity in existing docs was actively capable of misleading a reader about what LeagueLens does.
 
 **Related rename:** Phase 2 is retitled from "Sleeper Platform" (per ADR-009) to **"Sleeper Experience"** — "Platform" reads as LeagueLens building its own competing base for league data, which contradicts the companion positioning this ADR establishes; "Experience" better describes a polished, read-only view layered on Sleeper's own data. See `docs/ROADMAP.md`.
+
+---
+
+## ADR-011: Frontend and Infrastructure promoted to standalone phases (3 and 4), ahead of Unified Player Profiles
+
+**Date:** 2026-08-06
+**Status:** Accepted
+
+**Decision:**
+- Phase 2 ("Sleeper Experience") is rescoped down to just its Domain → API layers (Milestones 1–4) — all of which are done — and is now marked ✅ Done in full.
+- Its two remaining sub-items are promoted out of Phase 2's internal layer numbering into their own top-level phases, in this order: **Phase 3 — Frontend**, **Phase 4 — Infrastructure**.
+- Every later phase renumbers up by two: former Phase 3 (Unified Player Profiles) → **Phase 5**, former Phase 4 (Analytics) → **Phase 6**, former Phase 5 (AI Assistant) → **Phase 7**.
+
+**Why:** No technical dependency requires Infrastructure before Frontend — local development already runs against SQL Server Express directly rather than the still-unbuilt Docker setup (ADR-005), so nothing about deployment tooling blocks building and testing the Angular UI locally against the now-complete API. Sequencing Frontend first means real UI work can start the moment the Figma design lands, without waiting on unrelated deployment plumbing. Frontend followed immediately by Infrastructure also produces a genuinely useful checkpoint — a deployed, usable companion app — before committing to Phase 5's larger scope (multi-provider scraping, identity resolution, admin review tooling), which is a better portfolio milestone to reach than "API only, no UI, not deployed."
+
+This is a scope redefinition, not evidence of new completed work: Phase 2 isn't more done than it was yesterday — it's just no longer defined to include Frontend/Infrastructure as sub-items, so its actual (unchanged) completion state can be marked accurately.
+
+**Consequences:**
+- Phase 5 (Unified Player Profiles) keeps its own six-layer breakdown, including its own "Infrastructure" (scraper-specific deployment needs) and "Frontend" (click-to-detail UI) sub-items — those describe that phase's own feature-specific work and are distinct from the foundational deployment infra now being built in the standalone Phase 4.
+- Phase 5 now starts once Phase 4 ships (i.e., after both Frontend and Infrastructure), not once Phase 2 ships — Phase 2 alone is no longer a meaningful gate now that it's already done.
+
+**Alternatives considered:**
+- Leaving Frontend/Infrastructure as Phase 2's layers 5/6 and just marking Phase 2 "mostly done" — rejected: doesn't reflect that these two are now being pursued as full-scope, prioritized work in their own right, not afterthought cleanup items on an already-shipped phase.
+- Infrastructure before Frontend (the original ordering) — rejected: no technical dependency forces this order, and Frontend first gets a testable UI sooner, with Infrastructure/deployment following once there's something real to deploy.
