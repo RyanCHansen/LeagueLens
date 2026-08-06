@@ -1,5 +1,6 @@
 using LeagueLens.Application.Sleeper.Client.Dtos;
 using LeagueLens.Application.Sleeper.Preview;
+using LeagueLens.Application.Sleeper.Preview.Models;
 using LeagueLens.Application.Tests.TestSupport;
 using LeagueLens.Domain.Entities;
 

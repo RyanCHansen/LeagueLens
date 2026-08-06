@@ -29,6 +29,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<SleeperSyncService>();
         services.AddScoped<IWeekPreviewService, WeekPreviewService>();
         services.AddScoped<ILeagueReadService, LeagueReadService>();
+        services.AddScoped<IPlayerReadService, PlayerReadService>();
 
         return services;
     }

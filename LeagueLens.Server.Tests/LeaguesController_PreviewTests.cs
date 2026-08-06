@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using LeagueLens.Application.Sleeper.Client.Dtos;
-using LeagueLens.Application.Sleeper.Preview;
+using LeagueLens.Application.Sleeper.Preview.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LeagueLens.Server.Tests;

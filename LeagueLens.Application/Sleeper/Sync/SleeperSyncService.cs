@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using LeagueLens.Application.Sleeper.Client;
 using LeagueLens.Application.Sleeper.Client.Dtos;
+using LeagueLens.Application.Sleeper.Sync.Models;
 using LeagueLens.Domain.Entities;
 using LeagueLens.Domain.Enums;
 using LeagueLens.Persistence;

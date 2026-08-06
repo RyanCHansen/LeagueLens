@@ -1,3 +1,4 @@
+using LeagueLens.Application.Sleeper.Read.Models;
 using LeagueLens.Persistence;
 using Microsoft.EntityFrameworkCore;
 

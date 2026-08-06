@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using LeagueLens.Application.Sleeper.Client.Dtos;
-using LeagueLens.Application.Sleeper.Sync;
+using LeagueLens.Application.Sleeper.Sync.Models;
 using LeagueLens.Domain.Entities;
 using LeagueLens.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;

@@ -1,4 +1,4 @@
-namespace LeagueLens.Application.Sleeper.Read;
+namespace LeagueLens.Application.Sleeper.Read.Models;
 
 /// <summary>
 /// One completed matchup, with real scores -- unlike <c>MatchupPreviewEntry</c> (the live current-week

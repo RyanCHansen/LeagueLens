@@ -1,4 +1,4 @@
-namespace LeagueLens.Application.Sleeper.Sync;
+namespace LeagueLens.Application.Sleeper.Sync.Models;
 
 public sealed record SyncStats(int Added, int Updated, int Skipped, TimeSpan MapDuration, TimeSpan PersistDuration)
 {

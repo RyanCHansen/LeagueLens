@@ -1,4 +1,4 @@
-namespace LeagueLens.Application.Sleeper.Read;
+namespace LeagueLens.Application.Sleeper.Read.Models;
 
 /// <summary>A league's identity and its current members. No rosters/matchups -- see the dedicated endpoints for those.</summary>
 public sealed record LeagueDetailResult(

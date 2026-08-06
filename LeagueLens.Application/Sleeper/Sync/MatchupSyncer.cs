@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using LeagueLens.Application.Sleeper.Client.Dtos;
 using LeagueLens.Application.Sleeper.Mapping;
+using LeagueLens.Application.Sleeper.Sync.Models;
 using LeagueLens.Persistence;
 using Microsoft.EntityFrameworkCore;
 

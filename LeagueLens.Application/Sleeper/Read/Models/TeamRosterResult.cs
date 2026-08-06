@@ -1,6 +1,6 @@
 using LeagueLens.Domain.Enums;
 
-namespace LeagueLens.Application.Sleeper.Read;
+namespace LeagueLens.Application.Sleeper.Read.Models;
 
 /// <summary>One team's current-season roster. Player identity is embedded per entry so no follow-up per-player call is needed.</summary>
 public sealed record TeamRosterResult(

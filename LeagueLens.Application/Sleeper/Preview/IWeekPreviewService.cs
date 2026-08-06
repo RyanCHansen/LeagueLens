@@ -1,3 +1,5 @@
+using LeagueLens.Application.Sleeper.Preview.Models;
+
 namespace LeagueLens.Application.Sleeper.Preview;
 
 /// <summary>

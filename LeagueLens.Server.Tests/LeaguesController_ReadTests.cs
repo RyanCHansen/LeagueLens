@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using LeagueLens.Application.Sleeper.Read;
+using LeagueLens.Application.Sleeper.Read.Models;
 using LeagueLens.Domain.Entities;
 using LeagueLens.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;

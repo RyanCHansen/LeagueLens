@@ -1,4 +1,4 @@
-namespace LeagueLens.Application.Sleeper.Sync;
+namespace LeagueLens.Application.Sleeper.Sync.Models;
 
 public sealed record SyncResult(
     string SleeperLeagueId,

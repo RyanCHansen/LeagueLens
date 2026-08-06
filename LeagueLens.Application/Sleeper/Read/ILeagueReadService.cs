@@ -1,3 +1,5 @@
+using LeagueLens.Application.Sleeper.Read.Models;
+
 namespace LeagueLens.Application.Sleeper.Read;
 
 /// <summary>

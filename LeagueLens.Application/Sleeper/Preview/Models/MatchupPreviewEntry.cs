@@ -1,4 +1,4 @@
-namespace LeagueLens.Application.Sleeper.Preview;
+namespace LeagueLens.Application.Sleeper.Preview.Models;
 
 /// <summary>
 /// One matchup pairing for the current week. <c>TeamA</c>/<c>TeamB</c> are generic, neutral slot

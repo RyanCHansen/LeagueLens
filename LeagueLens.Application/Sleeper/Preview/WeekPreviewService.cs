@@ -1,5 +1,6 @@
 using LeagueLens.Application.Sleeper.Client;
 using LeagueLens.Application.Sleeper.Client.Dtos;
+using LeagueLens.Application.Sleeper.Preview.Models;
 using LeagueLens.Persistence;
 using Microsoft.EntityFrameworkCore;
 

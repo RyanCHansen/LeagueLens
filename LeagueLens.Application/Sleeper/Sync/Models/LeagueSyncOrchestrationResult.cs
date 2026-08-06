@@ -1,4 +1,4 @@
-namespace LeagueLens.Application.Sleeper.Sync;
+namespace LeagueLens.Application.Sleeper.Sync.Models;
 
 /// <summary>
 /// One cooldown-gated step of an orchestrated sync. <see cref="Ran"/> is false when the step
