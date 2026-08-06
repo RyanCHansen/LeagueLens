@@ -1,4 +1,5 @@
 using LeagueLens.Application.Sleeper.Preview;
+using LeagueLens.Application.Sleeper.Read;
 using LeagueLens.Application.Sleeper.Sync;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,8 +10,42 @@ namespace LeagueLens.Server.Controllers;
 [Route("api/leagues/{sleeperLeagueId}")]
 public sealed class LeaguesController(
     IWeekPreviewService weekPreviewService,
-    SleeperSyncService syncService) : ControllerBase
+    SleeperSyncService syncService,
+    ILeagueReadService leagueReadService) : ControllerBase
 {
+    /// <summary>League detail and its current membership list.</summary>
+    /// <response code="404">No league with the given Sleeper league ID has been synced.</response>
+    [HttpGet]
+    public async Task<ActionResult<LeagueDetailResult>> GetLeague(string sleeperLeagueId, CancellationToken ct)
+    {
+        var result = await leagueReadService.GetLeagueDetailAsync(sleeperLeagueId, ct);
+        return result is null ? LeagueNotFound(sleeperLeagueId) : Ok(result);
+    }
+
+    /// <summary>
+    /// Every team's current-season roster, with player identity embedded per entry so the caller
+    /// never needs a follow-up call per player.
+    /// </summary>
+    /// <response code="404">No league with the given Sleeper league ID has been synced.</response>
+    [HttpGet("rosters")]
+    public async Task<ActionResult<IReadOnlyList<TeamRosterResult>>> GetRosters(string sleeperLeagueId, CancellationToken ct)
+    {
+        var result = await leagueReadService.GetRostersAsync(sleeperLeagueId, ct);
+        return result is null ? LeagueNotFound(sleeperLeagueId) : Ok(result);
+    }
+
+    /// <summary>
+    /// Every persisted matchup for the league, with real scores -- unlike <see cref="GetWeekPreview"/>,
+    /// which covers only the live, unscored current week.
+    /// </summary>
+    /// <response code="404">No league with the given Sleeper league ID has been synced.</response>
+    [HttpGet("matchups")]
+    public async Task<ActionResult<IReadOnlyList<MatchupResult>>> GetMatchups(string sleeperLeagueId, CancellationToken ct)
+    {
+        var result = await leagueReadService.GetMatchupsAsync(sleeperLeagueId, ct);
+        return result is null ? LeagueNotFound(sleeperLeagueId) : Ok(result);
+    }
+
     /// <summary>
     /// The single sync action for a league: refreshes the player catalog first if its cooldown
     /// has elapsed, then syncs the league's own data if its (separate, shorter) cooldown has

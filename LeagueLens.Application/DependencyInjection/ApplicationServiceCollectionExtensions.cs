@@ -1,5 +1,6 @@
 using LeagueLens.Application.Sleeper.Client;
 using LeagueLens.Application.Sleeper.Preview;
+using LeagueLens.Application.Sleeper.Read;
 using LeagueLens.Application.Sleeper.Sync;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +28,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<MatchupSyncer>();
         services.AddScoped<SleeperSyncService>();
         services.AddScoped<IWeekPreviewService, WeekPreviewService>();
+        services.AddScoped<ILeagueReadService, LeagueReadService>();
 
         return services;
     }
