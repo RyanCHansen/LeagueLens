@@ -1,11 +1,13 @@
-import { Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+
+import { ShellComponent } from './layout/shell/shell.component';
 
 @Component({
   selector: 'app-root',
+  standalone: true,
+  imports: [ShellComponent],
   templateUrl: './app.component.html',
-  standalone: false,
-  styleUrl: './app.component.scss'
+  styleUrl: './app.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AppComponent {
-  protected readonly title = signal('leaguelens.client');
-}
+export class AppComponent {}

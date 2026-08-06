@@ -1,0 +1,58 @@
+<header
+  class="sticky top-0 z-10 flex items-center gap-4 border-b border-slate-800/70 bg-slate-950/80 px-6 py-3 backdrop-blur"
+>
+  <button
+    type="button"
+    aria-label="Toggle navigation menu"
+    (click)="menuToggle.emit()"
+    class="-ml-1 shrink-0 rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-slate-100 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none lg:hidden"
+  >
+    <app-icon name="menu" class="h-5 w-5" />
+  </button>
+
+  <nav aria-label="Breadcrumb" class="flex shrink-0 items-center gap-1.5 text-sm">
+    <span class="font-medium text-slate-100">Dashboard</span>
+    <app-icon name="chevron-right" class="h-3.5 w-3.5 text-slate-600" />
+    <span class="text-slate-500">Season 2024</span>
+  </nav>
+
+  <div class="relative max-w-sm flex-1">
+    <app-icon
+      name="search"
+      class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-500"
+    />
+    <input
+      type="search"
+      [value]="searchTerm()"
+      (input)="onSearchInput($event)"
+      placeholder="Search players, teams&hellip;"
+      aria-label="Search players and teams"
+      class="w-full rounded-lg border border-slate-800 bg-slate-900 py-2 pr-3 pl-9 text-sm text-slate-200 placeholder:text-slate-500 focus:border-slate-700 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
+    />
+  </div>
+
+  <div class="ml-auto flex shrink-0 items-center gap-1.5">
+    <button
+      type="button"
+      aria-label="Toggle theme"
+      class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-slate-100 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
+    >
+      <app-icon name="sun" class="h-[18px] w-[18px]" />
+    </button>
+    <button
+      type="button"
+      aria-label="Notifications"
+      class="relative rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-slate-100 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
+    >
+      <app-icon name="bell" class="h-[18px] w-[18px]" />
+      <span class="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-indigo-400"></span>
+    </button>
+    <button
+      type="button"
+      aria-label="Account menu"
+      class="ml-1 flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500/20 text-sm font-semibold text-indigo-300 transition-colors hover:bg-indigo-500/30 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
+    >
+      M
+    </button>
+  </div>
+</header>

@@ -242,3 +242,31 @@ This is a scope redefinition, not evidence of new completed work: Phase 2 isn't 
 **Alternatives considered:**
 - Leaving Frontend/Infrastructure as Phase 2's layers 5/6 and just marking Phase 2 "mostly done" — rejected: doesn't reflect that these two are now being pursued as full-scope, prioritized work in their own right, not afterthought cleanup items on an already-shipped phase.
 - Infrastructure before Frontend (the original ordering) — rejected: no technical dependency forces this order, and Frontend first gets a testable UI sooner, with Infrastructure/deployment following once there's something real to deploy.
+
+---
+
+## ADR-012: Phase 3 frontend stack, mocking boundary, and milestone split
+
+**Date:** 2026-08-06
+**Status:** Accepted
+
+**Decision:**
+- Angular components for Phase 3 (and going forward) are **standalone with signals**, reversing the scaffold's `standalone: false` schematic default that CLAUDE.md previously documented as the project convention. `angular.json`'s schematic defaults and CLAUDE.md's documented convention get updated as part of implementing the first Phase 3 milestone (a code change, not this ADR).
+- **Tailwind CSS** is adopted as the client's styling approach, configured against the `@angular/build` esbuild pipeline (not previously installed).
+- **`ng-apexcharts`** is adopted for the client's first charting need (the Dashboard's weekly scoring trend line).
+- Figma designs are being delivered **one screen at a time, as PNG screenshots only** — no Figma dev-mode/token export. Phase 3 therefore works from pixel-eyeballed colors/spacing/type per screen rather than exported design tokens, and its milestone list grows screen-by-screen as designs arrive, rather than being fully pre-planned the way Phase 2's architecturally-sequenced layers were.
+- The first delivered screen (Dashboard) needs data — league standings, points-for/against ranks, weekly scoring history, win probability, trade/waiver activity — that has no backend support yet (standings/trends are Phase 6 per ADR-009; trade/transaction history is Phase 6 scope, not yet modeled in the Domain layer at all). Rather than block on Phase 6 or partially wire only what the API happens to support today (e.g. next-matchup pairing via the existing `/preview` endpoint), **all Dashboard data for this milestone comes from a single injectable mock data service**, returning typed, `Observable`-based results with artificial latency (to exercise real loading states) — so the screen is internally consistent, and swapping in real endpoints later, screen-by-screen as each backing capability actually ships, touches only that service.
+- The **app shell** (sidebar nav + topbar) is built once, up front, since every later screen reuses it. Nav items with no backing route yet (everything except Dashboard) render visibly but disabled/inert rather than being omitted or linking to dead routes.
+- The first Phase 3 milestone is **split in two**: (1) tooling conversion (standalone/signals, Tailwind, ApexCharts) + the app shell, reviewed on its own before (2) the Dashboard screen's own content components + mock data service. Per CLAUDE.md's milestone-sizing rule ("if scoping reveals a milestone has grown too large, split it before implementation begins"), the combined scope — a framework migration plus a persistent shell plus six distinct dashboard components — was judged too large for one review cycle.
+
+**Why:**
+- Standalone+signals reflects current idiomatic Angular. No working frontend code exists yet, so switching now costs nothing that switching later wouldn't cost more of.
+- Mocking the Dashboard uniformly, rather than partially wiring what's technically available today, keeps the milestone's concern singular — visual/UX craftsmanship — instead of mixing in integration work against an endpoint (`/preview`) whose consumption shape would likely need revisiting anyway once real standings/activity data exists in Phase 6. A fully-mocked screen is also simpler to reason about and to swap later than one that's half-live, half-mock.
+- Building the shell once now avoids rebuilding chrome per screen, or bolting it on awkwardly after several pages already assume none exists.
+- Splitting tooling/shell from screen content keeps each milestone reviewable in isolation — build-config/bootstrap/routing changes are a different kind of risk than component/UI work, and reviewing them separately makes a regression easier to isolate.
+
+**Alternatives considered:**
+- Keeping the NgModule convention to minimize scaffold churn — rejected: no working frontend code exists yet to disrupt, and "follow Angular best practices" was an explicit stated priority for this portfolio piece.
+- Wiring the Next Matchup card to the real `/preview` endpoint now since it's technically available — rejected: partial live-wiring inside an otherwise fully-mocked screen adds integration complexity to a milestone meant to be purely about UI polish.
+- One combined tooling+shell+dashboard-content milestone — rejected per CLAUDE.md's own sizing guidance; too large to review as a single unit.
+- Waiting for exact Figma tokens (hex/spacing values via dev-mode export) before starting — rejected: screenshots are what's available now; revisit per-screen fidelity later only if the gap actually matters.

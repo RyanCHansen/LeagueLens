@@ -9,7 +9,7 @@ For current project state (what's built, what's next), see `PROJECT_CONTEXT.md`.
 LeagueLens is a two-project solution generated from the Visual Studio "Angular + ASP.NET Core" SPA template:
 
 - **`LeagueLens.Server`** — ASP.NET Core 10 (net10.0) Web API. Serves the built Angular app as static files and exposes API controllers.
-- **`LeagueLens.Client`** — Angular 21 client (Angular CLI, non-standalone/NgModule-based components), built with the `@angular/build` (esbuild/Vite-based) builder and tested with Vitest.
+- **`LeagueLens.Client`** — Angular 21 client (Angular CLI, standalone components + signals, no `NgModule`s — switched from the scaffold's original NgModule convention per ADR-012), built with the `@angular/build` (esbuild/Vite-based) builder and tested with Vitest. Styled with Tailwind CSS (v4, CSS-first config via `src/styles.css` + `.postcssrc.json` — no `tailwind.config.js`).
 
 The two are wired together via `LeagueLens.slnx` (a `.slnx` solution file, not the classic `.sln` format) and an `esproj` reference: `LeagueLens.Server.csproj` references `LeagueLens.Client.esproj` so that running the server project also builds/serves the client (via `Microsoft.AspNetCore.SpaProxy` in development).
 
@@ -23,7 +23,7 @@ Run from the `LeagueLens.Client` directory:
 - `ng build` — production build, output to `dist/leaguelens.client/browser/`.
 - `ng build --watch --configuration development` — dev build in watch mode.
 - `ng test` — run the unit test suite with Vitest (via the `@angular/build:unit-test` builder — despite `karma.conf.js` still existing in the repo, Karma is not the active runner).
-- `ng generate component <name>` — scaffold a new component. Schematics default to **non-standalone** components with SCSS styles (`angular.json` sets `standalone: false` for components/directives/pipes) — match this convention when hand-writing new components.
+- `ng generate component <name>` — scaffold a new component. Schematics default to **standalone** components with SCSS styles and `OnPush` change detection (`angular.json`'s `@schematics/angular:component` config) — match this convention when hand-writing new components.
 
 ### Server (`LeagueLens.Server/`)
 
@@ -38,9 +38,9 @@ There is no repo-wide lint/format command configured yet; Prettier config exists
 ## Architecture conventions
 
 - **API/client contract**: the client proxies API paths to the backend in dev via `LeagueLens.Client/src/proxy.conf.js`. **When adding a new controller/route, add its path to the `context` array in `proxy.conf.js`** or client requests to it will 404 against the dev server instead of reaching the API.
-- **Client module structure**: NgModule-based (not standalone components). `app-module.ts` declares/bootstraps `AppComponent` and imports `AppRoutingModule`; new components must be declared in a module (either `app-module.ts` or a feature module) to be usable.
-- **Client folders**: `src/app/layout/` holds shell/chrome components (e.g. `header`), `src/app/pages/` holds routed page components (e.g. `home`), `src/app/Models/` holds TypeScript interfaces mirroring server DTOs. Follow this split when adding new features rather than flattening everything into `src/app/`.
-- **Routing**: routes are declared in `app-routing-module.ts` against `Routes`/`RouterModule.forRoot`.
+- **Client bootstrap**: standalone, via `bootstrapApplication(AppComponent, appConfig)` in `main.ts`. `app.config.ts` holds the `ApplicationConfig` (router, HTTP client, error listeners); there is no `AppModule`. New components declare their own `imports: [...]` rather than being declared in a module.
+- **Client folders**: `src/app/layout/` holds shell/chrome components (`shell` composes `sidebar` + `topbar` + `<router-outlet>`), `src/app/pages/` holds routed page components (e.g. `dashboard`), `src/app/shared/` holds small reusable presentational components used across features (e.g. `icon`), `src/app/Models/` holds TypeScript interfaces mirroring server DTOs. Follow this split when adding new features rather than flattening everything into `src/app/`.
+- **Routing**: routes are declared in `app.routes.ts` as a plain `Routes` array, provided via `provideRouter(routes)` in `app.config.ts`.
 - **Server startup** (`Program.cs`) is minimal hosting-model style: `AddControllers()` + `AddOpenApi()`, `UseDefaultFiles()`/`MapStaticAssets()` to serve the Angular build output, `MapOpenApi()` gated to `Development`, and `MapFallbackToFile("/index.html")` for client-side routing support in production.
 - **Domain/Persistence separation:** domain entities are persistence-ignorant POCOs — no EF Core attributes or base classes. Table mapping, keys, relationships, and constraints are configured in the Persistence layer via Fluent API (`IEntityTypeConfiguration<T>`), never via data annotations on domain classes.
 - **Structured logging** (`ILogger<T>`, structured message templates, not string concatenation) is used from the first milestone, not retrofitted later.

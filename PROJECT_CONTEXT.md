@@ -18,6 +18,6 @@
 
 **Caveats/notes flagged in the doc itself:**
 - The renamed scaffold's client/server wiring (SPA proxy, single-deployable static file serving) is being replaced per the planned architecture — API and SPA will deploy separately. "Don't treat the current `Program.cs`/`proxy.conf.js` setup as the target design."
-- **Frontend (Phase 3):** a Figma design exists but hasn't been shared into the repo yet. No frontend implementation work starts until it is.
+- **Frontend (Phase 3):** now in progress — the first Figma screen (Dashboard, `UIFigmaPhotos/LL Dashboard.png`) has been shared. Figma designs arrive one screen at a time as screenshots (no dev-mode token export), so Phase 3's milestone list grows as designs arrive rather than being fully pre-planned. See ADR-012.
 
-**Next:** Phase 2 is complete. Per ADR-011, Frontend and Infrastructure are now their own phases rather than Phase 2 sub-items — **Phase 3 (Frontend)** is next, blocked on the not-yet-shared Figma design, followed by **Phase 4 (Infrastructure)** (`docker-compose.yml`, `scripts/`, Azure Bicep, not started). See `docs/ROADMAP.md` for full phase detail.
+**Next:** Phase 2 is complete. Per ADR-011, Frontend and Infrastructure are now their own phases rather than Phase 2 sub-items. **Phase 3 (Frontend)** is now in progress, starting with **Milestone 1 (Tooling & App Shell)** — standalone/signals conversion, Tailwind CSS, `ng-apexcharts`, and the persistent sidebar/topbar shell (ADR-012) — followed by **Milestone 2 (Dashboard)**, the first Figma screen's own content, entirely mock-data-backed for now. **Phase 4 (Infrastructure)** (`docker-compose.yml`, `scripts/`, Azure Bicep) remains not started. See `docs/ROADMAP.md` for full phase detail.

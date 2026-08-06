@@ -10,14 +10,8 @@
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
-          "standalone": false,
-          "style": "scss"
-        },
-        "@schematics/angular:directive": {
-          "standalone": false
-        },
-        "@schematics/angular:pipe": {
-          "standalone": false
+          "style": "scss",
+          "changeDetection": "OnPush"
         }
       },
       "root": "",
@@ -36,7 +30,7 @@
               }
             ],
             "styles": [
-              "src/styles.scss"
+              "src/styles.css"
             ]
           },
           "configurations": {
