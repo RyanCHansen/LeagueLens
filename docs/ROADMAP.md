@@ -9,7 +9,7 @@
   3. **Application** ⏳ Partially done. Concrete Sleeper sync module shipped: API client, DTOs, pure mappers, delete-and-replace/upsert syncers orchestrated by `SleeperSyncService`, registered via `AddSleeperSync()` (no provider interface yet — single provider, nothing to abstract). Also shipped: `WeekPreviewService` (current week's live matchup pairings, no scores — see ADR-008, relocated here from the removed League Intel work per ADR-009). Not yet done: a way to trigger a sync over HTTP.
   4. **API** ⏳ Partially done. Shipped: `GET /api/leagues/{sleeperLeagueId}/preview`. Not yet done: a sync-trigger endpoint, and raw read endpoints for leagues/rosters/players/matchups.
   5. **Infrastructure** — not started. `docker-compose.yml` (API + local SQL Server), `scripts/` folder (setup, DB reset, dev data seeding, local startup), Azure deployment via Bicep (Static Web Apps + Container Apps + Container Apps Jobs + Azure SQL), manual deploy.
-  6. **Frontend** — not started. Angular UI, following a Figma design (not yet shared) once available; no frontend work starts before that. Scope once started: league pages, roster pages, player pages, player search, team pages, matchup pages, and draft/transaction pages if Sleeper's API supports them well enough.
+  6. **Frontend** — not started. Angular UI, following a Figma design (not yet shared) once available; no frontend work starts before that. Scope once started: league pages, roster pages, player pages, player search, team pages, and matchup pages. Draft/transaction history moved to Phase 4 (see below) rather than Phase 2 scope.
 
   **Note:** Milestones 3b and 4a–4c under the old "League Intel" framing (standings/power-ranking/trend calculations and their API endpoints) were built, then removed on 2026-08-04 per ADR-009 — the analytics approach may look different by the time Phase 4 restarts this work, so the code wasn't preserved in place. See git history before that date if ever needed for reference.
 
@@ -25,6 +25,7 @@
   - Standings, power rankings, in-season trends, matchup recaps, and week highlights — rebuilt fresh against whatever the Player Profile and Sleeper Experience look like by then, not resurrected from the code removed per ADR-009.
   - Multi-player comparison tool, built directly on `PlayerProfile` — no new aggregation logic needed.
   - True multi-season history, including a persisted `StandingSnapshot` entity (see ADR-006) once recomputing standings from raw matchup history on every read no longer scales.
+  - Draft and transaction history (trades, waiver claims) — moved here from Phase 2's Frontend scope; not modeled in the Domain layer yet. Revisit once Phase 2's core views and Phase 3's Player Profile exist to inform how trade/waiver context should surface (e.g. alongside a player's profile).
 
 - **Phase 5 — AI Assistant** (TBD). Not started, scope undefined. AI-assisted identity-match suggestions (Phase 3) are one possible candidate for this phase, not committed scope.
 

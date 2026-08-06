@@ -56,7 +56,8 @@ public sealed class SleeperSyncService(
 
         var season = int.Parse(leagueDto.Season);
         // Only weeks strictly before the NFL's current week are treated as complete; the
-        // in-progress week is skipped so partial/live scores don't distort standings.
+        // in-progress week is skipped so partial/live scores aren't persisted as if final
+        // (the current week's live pairing is served separately, on demand -- see ADR-008).
         var throughWeek = Math.Max(0, state.Week - 1);
         var matchupDtosByWeek = new Dictionary<int, IReadOnlyList<SleeperMatchupDto>>();
         for (var week = 1; week <= throughWeek; week++)
