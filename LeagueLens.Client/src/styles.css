@@ -1,5 +1,11 @@
 @import 'tailwindcss';
 
+@theme {
+  --color-accent-300: #d1d7e6;
+  --color-accent-400: #acb8d2;
+  --color-accent-500: #7a8eb8;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -18,6 +24,6 @@ body {
     -apple-system,
     sans-serif;
   font-feature-settings: 'tnum' 1;
-  background-color: #020617;
+  background-color: #111114;
   color: #f1f5f9;
 }
