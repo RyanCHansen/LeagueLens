@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 
+import { LeagueContextService } from '../../core/league-context/league-context.service';
 import { IconComponent, IconName } from '../../shared/icon/icon.component';
 
 interface NavItem {
@@ -17,6 +18,8 @@ interface NavItem {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NavRailComponent {
+  protected readonly leagueContext = inject(LeagueContextService);
+
   readonly open = input(false);
   readonly navigated = output<void>();
 

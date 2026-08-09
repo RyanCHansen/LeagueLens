@@ -270,3 +270,31 @@ This is a scope redefinition, not evidence of new completed work: Phase 2 isn't 
 - Wiring the Next Matchup card to the real `/preview` endpoint now since it's technically available — rejected: partial live-wiring inside an otherwise fully-mocked screen adds integration complexity to a milestone meant to be purely about UI polish.
 - One combined tooling+shell+dashboard-content milestone — rejected per CLAUDE.md's own sizing guidance; too large to review as a single unit.
 - Waiting for exact Figma tokens (hex/spacing values via dev-mode export) before starting — rejected: screenshots are what's available now; revisit per-screen fidelity later only if the gap actually matters.
+
+---
+
+## ADR-013: League-connection state architecture and the no-league landing page
+
+**Date:** 2026-08-09
+**Status:** Accepted
+
+**Decision:**
+- A new **`core/`** client folder holds app-wide singleton state services, alongside `layout/`, `pages/`, `shared/`, and `Models/`. It's distinct from `shared/`, which per CLAUDE.md is reserved for small reusable *presentational* components — a stateful singleton doesn't fit that description.
+- **`LeagueContextService`** (`core/league-context/`) owns *selected-league state only* — `leagues`, `selectedLeague` (derived), `hasLeague` (derived) — as plain signals. It explicitly does not own the Sleeper connection/sync workflow (that's future scope: connect → validate/sync → available leagues → selected league). It's also modeled as multi-league-ready from the start (`leagues: Signal<readonly LeagueSummary[]>`, not a single nullable field), since multi-league support is a known near-term requirement, even though only one (or zero) leagues are representable today.
+- For this milestone the service has **no data source at all** — not even mock data. `leagues` is simply an empty signal. This is a deliberate departure from ADR-012's "mock everything the screen needs" approach: ADR-012 mocked *content* for a screen whose existence wasn't in question; here, the thing being modeled is the literal absence of a league, so a real empty state is more honest than a fabricated connected one. Mock league data arrives only once there's a mocked *dashboard* to show in the connected case.
+- **The shell (`nav-rail` + `topbar`) always renders**, regardless of league state — it's the parent of `<router-outlet>`, never conditional. `DashboardComponent` (the `/` route) is the one place state-branching happens today: `hasLeague()` true renders its existing placeholder, false renders the new `LeagueOnboardingComponent`. No route guard exists yet — a route can't guard itself, and no other route exists yet to guard.
+- **Player Database is architected as a global, not league-scoped, feature.** Nothing about `LeagueContextService` or the routing approach gates it. It has no route or content yet (out of scope for this milestone), but when built, it will not depend on `hasLeague()`.
+- **Convention for future league-scoped routes** (My Team, Matchups, Trades, Draft Picks, League History, Analytics — none exist yet): each gets its own `CanActivateFn` guard checking `hasLeague()` and redirecting to `/`, rather than a blanket app-level guard. Not implemented yet since nothing exists to guard; recorded here so it isn't reinvented inconsistently later.
+- **`nav-rail`** now reads `LeagueContextService.hasLeague()` and hides its two hardcoded league-specific blocks (the league switcher, the bottom team-identity chip) when false, rather than showing fabricated league/team data while the page says none is connected.
+- The **no-league landing page** (`pages/dashboard/league-onboarding/`) is a presentational component with no injected state of its own — its parent (`DashboardComponent`) already decided it should render. It leads with the full `public/logo.png` lockup (framed with rounding/shadow rather than shown raw, since the source PNG has a hard-edged background), explains LeagueLens as a companion to Sleeper (not a replacement) that pools multi-source player data toward the eventual unified Player Profile, and offers two CTAs — "Connect Sleeper League" (primary) and "Explore Player Database" (secondary) — both genuinely `disabled` and labeled "Coming soon" rather than simulating success or linking to not-yet-built routes.
+
+**Why:**
+- Keeping `LeagueContextService` scoped to *selection* state, not connection/sync orchestration, matches the eventual real workflow's own separation of concerns and avoids building a service today that would need to be split apart once Sleeper connect/sync actually lands.
+- Modeling `leagues` as a collection from day one avoids a later breaking refactor from a single-league assumption once multi-league support is scoped.
+- Not mocking a connected league here keeps this milestone's concern singular (the empty-state experience) and avoids a throwaway mock that the next milestone (dashboard content) would immediately need to redesign anyway.
+- A disabled, honestly-labeled primary CTA is more trustworthy for a portfolio piece than a button that fakes a successful connection.
+
+**Alternatives considered:**
+- A blanket app-level guard gating all non-Dashboard routes on `hasLeague()` — rejected: would have gated Player Database too, contradicting its status as a global feature.
+- Modeling `LeagueContextService` around a single nullable `selectedLeague` field only — rejected: cheap to avoid now, expensive to unwind once multiple connected leagues are real.
+- Wiring the primary CTA to a mock `connectLeague()` that flips state to a fabricated connected league — rejected (explicit product decision): this milestone is scoped to the empty state only; simulating success would misrepresent a feature that doesn't exist yet.
