@@ -10,13 +10,13 @@ interface NavItem {
 }
 
 @Component({
-  selector: 'app-sidebar',
+  selector: 'app-nav-rail',
   standalone: true,
   imports: [RouterLink, RouterLinkActive, IconComponent],
-  templateUrl: './sidebar.component.html',
+  templateUrl: './nav-rail.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SidebarComponent {
+export class NavRailComponent {
   readonly open = input(false);
   readonly navigated = output<void>();
 

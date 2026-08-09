@@ -1,13 +1,13 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
-import { SidebarComponent } from '../sidebar/sidebar.component';
+import { NavRailComponent } from '../nav-rail/nav-rail.component';
 import { TopbarComponent } from '../topbar/topbar.component';
 
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, SidebarComponent, TopbarComponent],
+  imports: [RouterOutlet, NavRailComponent, TopbarComponent],
   templateUrl: './shell.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

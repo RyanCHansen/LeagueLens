@@ -6,7 +6,7 @@
     ></div>
   }
 
-  <app-sidebar [open]="mobileNavOpen()" (navigated)="mobileNavOpen.set(false)" />
+  <app-nav-rail [open]="mobileNavOpen()" (navigated)="mobileNavOpen.set(false)" />
 
   <div class="flex min-w-0 flex-1 flex-col">
     <app-topbar (menuToggle)="mobileNavOpen.set(!mobileNavOpen())" />
