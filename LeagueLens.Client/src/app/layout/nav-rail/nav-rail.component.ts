@@ -29,7 +29,7 @@ export class NavRailComponent {
     { label: 'Matchups', icon: 'matchups', route: null },
     { label: 'Trades', icon: 'trades', route: null },
     { label: 'Draft Picks', icon: 'draft', route: null },
-    { label: 'Player Database', icon: 'database', route: null },
+    { label: 'Player Database', icon: 'database', route: '/player-database' },
     { label: 'League History', icon: 'history', route: null },
     { label: 'Analytics', icon: 'analytics', route: null },
     { label: 'AI Assistant', icon: 'ai', route: null },
